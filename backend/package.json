@@ -16,6 +16,7 @@
   "description": "",
   "type": "module",
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.5",
     "@types/node": "^24.10.1",
     "drizzle-kit": "^0.31.7",

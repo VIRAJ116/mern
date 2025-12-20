@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useTheme } from '@/context/theme-context'
@@ -22,24 +21,15 @@ export function ModeToggleSwitch() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem
-          className={'cursor-pointer'}
-          onClick={() => setTheme('light')}
-        >
+        <div className={'cursor-pointer'} onClick={() => setTheme('light')}>
           Light
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          className={'cursor-pointer'}
-          onClick={() => setTheme('dark')}
-        >
+        </div>
+        <div className={'cursor-pointer'} onClick={() => setTheme('dark')}>
           Dark
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          className={'cursor-pointer'}
-          onClick={() => setTheme('system')}
-        >
+        </div>
+        <div className={'cursor-pointer'} onClick={() => setTheme('system')}>
           System
-        </DropdownMenuItem>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   )

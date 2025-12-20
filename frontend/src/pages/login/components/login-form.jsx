@@ -32,8 +32,8 @@ export function LoginForm({ className, ...props }) {
     resolver: zodResolver(loginSchema),
     mode: 'onChange',
     defaultValues: {
-      email: '',
-      password: '',
+      email: 'admin@example.com',
+      password: 'Admin@123',
     },
   })
   const { mutate } = useMutation({

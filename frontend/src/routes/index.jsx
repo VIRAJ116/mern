@@ -3,6 +3,7 @@ import App from '@/App'
 import Login from '@/pages/login'
 import ProtectedRoute from '@/routes/protected-route'
 import Dashboard from '@/pages/dashboard'
+import AppLayout from '@/layout/AppLayout'
 
 export const router = createBrowserRouter([
   {
@@ -21,8 +22,13 @@ export const router = createBrowserRouter([
         element: <ProtectedRoute />,
         children: [
           {
-            path: 'dashboard',
-            element: <Dashboard />,
+            element: <AppLayout />,
+            children: [
+              {
+                path: 'dashboard',
+                element: <Dashboard />,
+              },
+            ],
           },
         ],
       },

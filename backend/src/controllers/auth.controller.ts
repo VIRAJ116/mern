@@ -24,8 +24,8 @@ export const login = async (req: Request, res: Response) => {
       error: "Invalid password",
     });
   }
-  const token = await loginUser({ id: user.id, role: user.role });
-  res.cookie("access_token", token, {
+  const { accessToken } = await loginUser({ id: user.id, role: user.role });
+  res.cookie("access_token", accessToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -33,6 +33,11 @@ export const login = async (req: Request, res: Response) => {
   });
   res.status(200).json({
     success: true,
-    data: token,
+    data: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    },
   });
 };

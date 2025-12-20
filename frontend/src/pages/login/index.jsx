@@ -1,4 +1,4 @@
-import { ModeToggleSwitch } from '@/components/mode-toggle-switch'
+import { ModeToggleSwitch } from '@/components/ui/mode-toggle-switch'
 import { LoginForm } from '@/pages/login/components/login-form'
 
 function Login() {
