@@ -20,6 +20,7 @@ import { loginSchema } from '@/schema/login-schema'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { login } from '@/services/auth'
 import { useNavigate } from 'react-router'
+import { toast } from 'sonner'
 
 export function LoginForm({ className, ...props }) {
   const navigate = useNavigate()
@@ -39,11 +40,12 @@ export function LoginForm({ className, ...props }) {
   const { mutate } = useMutation({
     mutationFn: login,
     onSuccess: () => {
+      toast.success('Login successful')
       navigate('/dashboard')
-      // queryClient.invalidateQueries({ queryKey: ['me'] })
+      queryClient.invalidateQueries({ queryKey: ['me'] })
     },
     onError: (error) => {
-      console.log('error', error)
+      toast.error(error?.response?.data?.error || 'Something went wrong')
     },
   })
   const onSubmit = (data) => mutate(data)

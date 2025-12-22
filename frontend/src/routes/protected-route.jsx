@@ -1,11 +1,12 @@
 import React from 'react'
 import { useAuth } from '@/context/auth-context'
-import { Navigate, Outlet } from 'react-router'
+import { Navigate, Outlet, useLocation } from 'react-router'
 import { Spinner } from '@/components/ui/spinner'
+import { PUBLIC_ROUTES } from '@/const/route'
 
 const ProtectedRoute = () => {
   const { isAuthenticated, isLoading } = useAuth()
-  console.log('isAuthenticated', isAuthenticated)
+  const location = useLocation()
 
   if (isLoading) {
     return (
@@ -15,7 +16,7 @@ const ProtectedRoute = () => {
     )
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !PUBLIC_ROUTES.includes(location.pathname)) {
     return <Navigate to="/login" replace />
   }
 
