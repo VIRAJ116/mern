@@ -2,17 +2,7 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import {
-  Plus,
-  Search,
-  Pizza,
-  Pencil,
-  Trash2,
-  LayoutGrid,
-  List,
-  Star,
-  Loader2,
-} from 'lucide-react';
+import { Plus, Search, Pizza, Pencil, Trash2, LayoutGrid, List, Star, Loader2 } from 'lucide-react';
 
 import { cn, formatCurrency } from '@/lib/utils';
 import { getAllPizzas, deletePizza } from '@/services/pizza';
@@ -21,14 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { DataTable } from '@/components/data-table';
 import {
   Dialog,
   DialogContent,
@@ -53,6 +36,89 @@ const tagColors = {
   premium: 'bg-pink-50 text-pink-700 border-pink-200',
 };
 
+const columns = [
+  {
+    accessorKey: 'imageUrl',
+    header: '',
+    meta: { headerClassName: 'w-12', cellClassName: '' },
+    cell: ({ row }) => {
+      const pizza = row.original;
+      return pizza.imageUrl ? (
+        <img src={pizza.imageUrl} alt={pizza.name} className="h-10 w-10 rounded-lg object-cover" />
+      ) : (
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+          <Pizza className="h-5 w-5 text-primary/50" />
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: 'name',
+    header: 'Name',
+    cell: ({ getValue }) => <span className="font-medium">{getValue()}</span>,
+  },
+  {
+    accessorKey: 'category',
+    header: 'Category',
+    cell: ({ getValue }) => {
+      const category = getValue();
+      return category ? (
+        <Badge variant="outline" className={cn('text-[10px]', categoryColors[category])}>
+          {category}
+        </Badge>
+      ) : null;
+    },
+  },
+  {
+    accessorKey: 'price',
+    header: 'Price',
+    cell: ({ row }) => (
+      <span className="font-semibold">
+        {formatCurrency(row.original.basePrice || row.original.price || 0)}
+      </span>
+    ),
+  },
+  {
+    accessorKey: 'tags',
+    header: 'Tags',
+    cell: ({ getValue }) => {
+      const tags = getValue();
+      return tags?.length > 0 ? (
+        <div className="flex flex-wrap gap-1">
+          {tags.map((tag) => (
+            <Badge
+              key={tag}
+              variant="outline"
+              className={cn('text-[10px] px-1.5 py-0', tagColors[tag])}
+            >
+              {tag}
+            </Badge>
+          ))}
+        </div>
+      ) : null;
+    },
+  },
+  {
+    accessorKey: 'rating',
+    header: 'Rating',
+    cell: ({ getValue }) => {
+      const rating = getValue();
+      return rating != null ? (
+        <div className="flex items-center gap-1 text-sm">
+          <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+          {rating}
+        </div>
+      ) : null;
+    },
+  },
+  {
+    id: 'actions',
+    header: 'Actions',
+    meta: { headerClassName: 'text-right', cellClassName: 'text-right' },
+    cell: () => null, // Placeholder — overridden in component via getActionsColumn
+  },
+];
+
 export default function PizzasPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
@@ -76,7 +142,7 @@ export default function PizzasPage() {
     },
   });
 
-  const pizzas = data?.data || data || [];
+  const pizzas = useMemo(() => data?.data || data || [], [data]);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return pizzas;
@@ -86,9 +152,41 @@ export default function PizzasPage() {
 
   const handleDelete = () => {
     if (deleteDialog.pizza) {
-      deleteMutation.mutate(deleteDialog.pizza._id);
+      deleteMutation.mutate(deleteDialog.pizza.id || deleteDialog.pizza._id);
     }
   };
+
+  // Build columns with actions that have access to component state
+  const tableColumns = useMemo(() => {
+    return columns.map((col) => {
+      if (col.id === 'actions') {
+        return {
+          ...col,
+          cell: ({ row }) => {
+            const pizza = row.original;
+            return (
+              <div className="flex items-center justify-end gap-1">
+                <Button variant="ghost" size="icon" asChild>
+                  <Link to={`/pizzas/${pizza.id || pizza._id}/edit`}>
+                    <Pencil className="h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-destructive hover:bg-destructive/10"
+                  onClick={() => setDeleteDialog({ open: true, pizza })}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            );
+          },
+        };
+      }
+      return col;
+    });
+  }, []);
 
   if (isLoading) {
     return (
@@ -180,10 +278,9 @@ export default function PizzasPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((pizza) => (
             <Card
-              key={pizza._id}
+              key={pizza.id || pizza._id}
               className="group overflow-hidden transition-shadow hover:shadow-lg"
             >
-              {/* Image */}
               {pizza.imageUrl ? (
                 <div className="relative h-44 overflow-hidden bg-muted">
                   <img
@@ -193,7 +290,7 @@ export default function PizzasPage() {
                   />
                 </div>
               ) : (
-                <div className="flex h-44 items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
+                <div className="flex h-44 items-center justify-center bg-linear-to-br from-primary/10 to-primary/5">
                   <Pizza className="h-16 w-16 text-primary/40" />
                 </div>
               )}
@@ -219,7 +316,6 @@ export default function PizzasPage() {
                   )}
                 </div>
 
-                {/* Rating */}
                 {pizza.rating != null && (
                   <div className="mt-2 flex items-center gap-1 text-sm text-muted-foreground">
                     <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
@@ -227,7 +323,6 @@ export default function PizzasPage() {
                   </div>
                 )}
 
-                {/* Tags */}
                 {pizza.tags && pizza.tags.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1">
                     {pizza.tags.map((tag) => (
@@ -242,10 +337,9 @@ export default function PizzasPage() {
                   </div>
                 )}
 
-                {/* Actions */}
                 <div className="mt-4 flex items-center gap-2">
                   <Button variant="outline" size="sm" className="flex-1" asChild>
-                    <Link to={`/pizzas/${pizza._id}/edit`}>
+                    <Link to={`/pizzas/${pizza.id || pizza._id}/edit`}>
                       <Pencil className="h-3.5 w-3.5" />
                       Edit
                     </Link>
@@ -268,93 +362,7 @@ export default function PizzasPage() {
       {/* Table View */}
       {filtered.length > 0 && viewMode === 'table' && (
         <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12"></TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Tags</TableHead>
-                <TableHead>Rating</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((pizza) => (
-                <TableRow key={pizza._id}>
-                  <TableCell>
-                    {pizza.imageUrl ? (
-                      <img
-                        src={pizza.imageUrl}
-                        alt={pizza.name}
-                        className="h-10 w-10 rounded-lg object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                        <Pizza className="h-5 w-5 text-primary/50" />
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="font-medium">{pizza.name}</TableCell>
-                  <TableCell>
-                    {pizza.category && (
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          'text-[10px]',
-                          categoryColors[pizza.category]
-                        )}
-                      >
-                        {pizza.category}
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="font-semibold">
-                    {formatCurrency(pizza.basePrice || pizza.price || 0)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {pizza.tags?.map((tag) => (
-                        <Badge
-                          key={tag}
-                          variant="outline"
-                          className={cn('text-[10px] px-1.5 py-0', tagColors[tag])}
-                        >
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {pizza.rating != null && (
-                      <div className="flex items-center gap-1 text-sm">
-                        <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                        {pizza.rating}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="icon" asChild>
-                        <Link to={`/pizzas/${pizza._id}/edit`}>
-                          <Pencil className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:bg-destructive/10"
-                        onClick={() => setDeleteDialog({ open: true, pizza })}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <DataTable columns={tableColumns} data={filtered} />
         </Card>
       )}
 
@@ -370,10 +378,8 @@ export default function PizzasPage() {
             <DialogTitle>Delete Pizza</DialogTitle>
             <DialogDescription>
               Are you sure you want to delete{' '}
-              <span className="font-semibold text-foreground">
-                {deleteDialog.pizza?.name}
-              </span>
-              ? This action cannot be undone.
+              <span className="font-semibold text-foreground">{deleteDialog.pizza?.name}</span>?
+              This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as authService from '../services/auth';
 
+const ADMIN_ROLES = ['admin', 'super_admin'];
+
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
@@ -16,11 +18,15 @@ export function AuthProvider({ children }) {
     staleTime: 1000 * 60 * 5,
   });
 
-  // const isAuthenticated = !!user;
-  const isAuthenticated = true;
+  const isAuthenticated = !!user;
+  const isAdmin = isAuthenticated && ADMIN_ROLES.includes(user.role);
 
   const login = async (credentials) => {
-    await authService.login(credentials);
+    const userData = await authService.login(credentials);
+    if (!ADMIN_ROLES.includes(userData.role)) {
+      await authService.logout();
+      throw new Error('ACCESS_DENIED');
+    }
     await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
   };
 
@@ -31,7 +37,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isAdmin, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

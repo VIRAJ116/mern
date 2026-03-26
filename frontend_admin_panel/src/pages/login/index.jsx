@@ -10,13 +10,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const loginSchema = z.object({
   email: z.string().nonempty('Email is required').email('Invalid email address'),
@@ -48,16 +42,18 @@ export default function LoginPage() {
       await login(data);
       toast.success('Welcome back!');
     } catch (error) {
-      toast.error(
-        error.response?.data?.message || 'Login failed. Please try again.'
-      );
+      if (error.message === 'ACCESS_DENIED') {
+        toast.error('Access denied. Admin privileges required.');
+      } else {
+        toast.error(error.response?.data?.error || 'Login failed. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background to-accent/20 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-background to-accent/20 p-4">
       <div className="w-full max-w-md">
         <Card className="border-border/50 shadow-xl">
           <CardHeader className="space-y-4 text-center">
@@ -65,9 +61,7 @@ export default function LoginPage() {
               <Pizza className="h-7 w-7 text-primary" />
             </div>
             <div className="space-y-1.5">
-              <CardTitle className="text-2xl font-bold tracking-tight">
-                PieRush Admin
-              </CardTitle>
+              <CardTitle className="text-2xl font-bold tracking-tight">PieRush Admin</CardTitle>
               <CardDescription className="text-muted-foreground">
                 Sign in to manage your store
               </CardDescription>
@@ -83,12 +77,12 @@ export default function LoginPage() {
                   placeholder="admin@pierush.com"
                   autoComplete="email"
                   disabled={isLoading}
-                  className={cn(errors.email && 'border-destructive focus-visible:ring-destructive')}
+                  className={cn(
+                    errors.email && 'border-destructive focus-visible:ring-destructive'
+                  )}
                   {...register('email')}
                 />
-                {errors.email && (
-                  <p className="text-xs text-destructive">{errors.email.message}</p>
-                )}
+                {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
               </div>
 
               <div className="space-y-2">
@@ -99,22 +93,17 @@ export default function LoginPage() {
                   placeholder="Enter your password"
                   autoComplete="current-password"
                   disabled={isLoading}
-                  className={cn(errors.password && 'border-destructive focus-visible:ring-destructive')}
+                  className={cn(
+                    errors.password && 'border-destructive focus-visible:ring-destructive'
+                  )}
                   {...register('password')}
                 />
                 {errors.password && (
-                  <p className="text-xs text-destructive">
-                    {errors.password.message}
-                  </p>
+                  <p className="text-xs text-destructive">{errors.password.message}</p>
                 )}
               </div>
 
-              <Button
-                type="submit"
-                className="w-full"
-                size="lg"
-                disabled={isLoading}
-              >
+              <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
                 {isLoading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />

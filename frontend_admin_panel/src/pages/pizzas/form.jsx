@@ -120,10 +120,16 @@ export default function PizzaFormPage() {
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   const onSubmit = (data) => {
+    const payload = {
+      ...data,
+      price: data.basePrice,
+    };
+    delete payload.basePrice;
+
     if (isEdit) {
-      updateMutation.mutate(data);
+      updateMutation.mutate(payload);
     } else {
-      createMutation.mutate(data);
+      createMutation.mutate(payload);
     }
   };
 
