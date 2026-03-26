@@ -1,14 +1,14 @@
 // src/controllers/user.controller.ts
-import { Request, Response } from "express";
+import { Request, Response } from 'express'
 import {
   getAllUsers,
   createUser as createUserService,
-} from "../services/user.service.js";
+} from '../services/user.service.ts'
 import {
   ApiSuccessResponse,
   ApiErrorResponse,
-} from "../types/response.types.js";
-import { CreateUserRequest, UserResponse } from "../types/user.types.js";
+} from '../types/response.types.ts'
+import { CreateUserRequest, UserResponse } from '../types/user.types.ts'
 
 /**
  * Get all users
@@ -16,23 +16,23 @@ import { CreateUserRequest, UserResponse } from "../types/user.types.js";
  */
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
   try {
-    const users = await getAllUsers();
+    const users = await getAllUsers()
 
     const response: ApiSuccessResponse<UserResponse[]> = {
       success: true,
       data: users,
-    };
+    }
 
-    res.json(response);
+    res.json(response)
   } catch (error) {
     const response: ApiErrorResponse = {
       success: false,
-      error: "Failed to retrieve users",
-    };
+      error: 'Failed to retrieve users',
+    }
 
-    res.status(500).json(response);
+    res.status(500).json(response)
   }
-};
+}
 
 /**
  * Create a new user
@@ -43,34 +43,34 @@ export const createUser = async (
   res: Response
 ): Promise<void> => {
   try {
-    const userData: CreateUserRequest = req.body;
+    const userData: CreateUserRequest = req.body
 
-    const result = await createUserService(userData);
+    const result = await createUserService(userData)
 
     if (!result.success) {
       const response: ApiErrorResponse = {
         success: false,
-        error: result.error || "Failed to create user",
-      };
+        error: result.error || 'Failed to create user',
+      }
 
-      const statusCode = result.error === "Email already exists" ? 409 : 500;
-      res.status(statusCode).json(response);
-      return;
+      const statusCode = result.error === 'Email already exists' ? 409 : 500
+      res.status(statusCode).json(response)
+      return
     }
 
     const response: ApiSuccessResponse<UserResponse> = {
       success: true,
       data: result.user,
-      message: "User created successfully",
-    };
+      message: 'User created successfully',
+    }
 
-    res.status(201).json(response);
+    res.status(201).json(response)
   } catch (error) {
     const response: ApiErrorResponse = {
       success: false,
-      error: "Failed to create user",
-    };
+      error: 'Failed to create user',
+    }
 
-    res.status(500).json(response);
+    res.status(500).json(response)
   }
-};
+}
