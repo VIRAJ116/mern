@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Plus, Search, Pizza, Pencil, Trash2, LayoutGrid, List, Star, Loader2 } from 'lucide-react';
+import { Plus, Search, Pizza, Pencil, Trash2, LayoutGrid, List, Star } from 'lucide-react';
 
 import { cn, formatCurrency } from '@/lib/utils';
 import { getAllPizzas, deletePizza } from '@/services/pizza';
@@ -12,14 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DataTable } from '@/components/data-table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import DeletePizzaDialog from './delete-dialog';
 
 const categoryColors = {
   veg: 'bg-green-100 text-green-800 border-green-200',
@@ -36,98 +29,15 @@ const tagColors = {
   premium: 'bg-pink-50 text-pink-700 border-pink-200',
 };
 
-const columns = [
-  {
-    accessorKey: 'imageUrl',
-    header: '',
-    meta: { headerClassName: 'w-12', cellClassName: '' },
-    cell: ({ row }) => {
-      const pizza = row.original;
-      return pizza.imageUrl ? (
-        <img src={pizza.imageUrl} alt={pizza.name} className="h-10 w-10 rounded-lg object-cover" />
-      ) : (
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-          <Pizza className="h-5 w-5 text-primary/50" />
-        </div>
-      );
-    },
-  },
-  {
-    accessorKey: 'name',
-    header: 'Name',
-    cell: ({ getValue }) => <span className="font-medium">{getValue()}</span>,
-  },
-  {
-    accessorKey: 'category',
-    header: 'Category',
-    cell: ({ getValue }) => {
-      const category = getValue();
-      return category ? (
-        <Badge variant="outline" className={cn('text-[10px]', categoryColors[category])}>
-          {category}
-        </Badge>
-      ) : null;
-    },
-  },
-  {
-    accessorKey: 'price',
-    header: 'Price',
-    cell: ({ row }) => (
-      <span className="font-semibold">
-        {formatCurrency(row.original.basePrice || row.original.price || 0)}
-      </span>
-    ),
-  },
-  {
-    accessorKey: 'tags',
-    header: 'Tags',
-    cell: ({ getValue }) => {
-      const tags = getValue();
-      return tags?.length > 0 ? (
-        <div className="flex flex-wrap gap-1">
-          {tags.map((tag) => (
-            <Badge
-              key={tag}
-              variant="outline"
-              className={cn('text-[10px] px-1.5 py-0', tagColors[tag])}
-            >
-              {tag}
-            </Badge>
-          ))}
-        </div>
-      ) : null;
-    },
-  },
-  {
-    accessorKey: 'rating',
-    header: 'Rating',
-    cell: ({ getValue }) => {
-      const rating = getValue();
-      return rating != null ? (
-        <div className="flex items-center gap-1 text-sm">
-          <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-          {rating}
-        </div>
-      ) : null;
-    },
-  },
-  {
-    id: 'actions',
-    header: 'Actions',
-    meta: { headerClassName: 'text-right', cellClassName: 'text-right' },
-    cell: () => null, // Placeholder — overridden in component via getActionsColumn
-  },
-];
-
 export default function PizzasPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
-  const [viewMode, setViewMode] = useState('grid');
+  const [viewMode, setViewMode] = useState('table');
   const [deleteDialog, setDeleteDialog] = useState({ open: false, pizza: null });
 
   const { data, isLoading } = useQuery({
     queryKey: ['pizzas'],
-    queryFn: getAllPizzas,
+    queryFn: () => getAllPizzas(),
   });
 
   const deleteMutation = useMutation({
@@ -142,7 +52,8 @@ export default function PizzasPage() {
     },
   });
 
-  const pizzas = useMemo(() => data?.data || data || [], [data]);
+  const pizzas = useMemo(() => data?.data?.data || data?.data || [], [data]);
+  const total = useMemo(() => data?.data?.total ?? pizzas.length, [data, pizzas]);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return pizzas;
@@ -156,37 +67,111 @@ export default function PizzasPage() {
     }
   };
 
-  // Build columns with actions that have access to component state
-  const tableColumns = useMemo(() => {
-    return columns.map((col) => {
-      if (col.id === 'actions') {
-        return {
-          ...col,
-          cell: ({ row }) => {
-            const pizza = row.original;
-            return (
-              <div className="flex items-center justify-end gap-1">
-                <Button variant="ghost" size="icon" asChild>
-                  <Link to={`/pizzas/${pizza.id || pizza._id}/edit`}>
-                    <Pencil className="h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-destructive hover:bg-destructive/10"
-                  onClick={() => setDeleteDialog({ open: true, pizza })}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            );
-          },
-        };
-      }
-      return col;
-    });
-  }, []);
+  const columns = [
+    {
+      id: 'actions',
+      header: 'Actions',
+      meta: { headerClassName: 'pl-4' },
+      cell: ({ row }) => {
+        const pizza = row.original;
+        return (
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" asChild>
+              <Link to={`/pizzas/${pizza.id || pizza._id}/edit`}>
+                <Pencil className="h-4 w-4" />
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-destructive hover:bg-destructive/10"
+              onClick={() => setDeleteDialog({ open: true, pizza })}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: 'imageUrl',
+      header: '',
+      meta: { headerClassName: 'w-12' },
+      cell: ({ row }) => {
+        const pizza = row.original;
+        return pizza.imageUrl ? (
+          <img
+            src={pizza.imageUrl}
+            alt={pizza.name}
+            className="h-8 w-8 rounded-full object-cover"
+          />
+        ) : (
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+            <Pizza className="h-5 w-5 text-primary/50" />
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: 'name',
+      header: 'Name',
+      cell: ({ getValue }) => <span className="font-medium">{getValue()}</span>,
+    },
+    {
+      accessorKey: 'category',
+      header: 'Category',
+      cell: ({ getValue }) => {
+        const category = getValue();
+        return category ? (
+          <Badge variant="outline" className={cn('text-[10px]', categoryColors[category])}>
+            {category}
+          </Badge>
+        ) : null;
+      },
+    },
+    {
+      accessorKey: 'price',
+      header: 'Price',
+      cell: ({ row }) => (
+        <span className="font-semibold">
+          {formatCurrency(row.original.basePrice || row.original.price || 0)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'tags',
+      header: 'Tags',
+      cell: ({ getValue }) => {
+        const tags = getValue();
+        return tags?.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            {tags.map((tag) => (
+              <Badge
+                key={tag}
+                variant="outline"
+                className={cn('text-[10px] px-1.5 py-0', tagColors[tag])}
+              >
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        ) : null;
+      },
+    },
+    {
+      accessorKey: 'rating',
+      header: 'Rating',
+      cell: ({ getValue }) => {
+        const rating = getValue();
+        return rating != null ? (
+          <div className="flex items-center gap-1 text-sm">
+            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+            {rating}
+          </div>
+        ) : null;
+      },
+    },
+  ];
 
   if (isLoading) {
     return (
@@ -211,9 +196,7 @@ export default function PizzasPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Pizzas</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage your pizza menu ({filtered.length} items)
-          </p>
+          <p className="text-sm text-muted-foreground">Manage your pizza menu ({total} items)</p>
         </div>
         <Button asChild>
           <Link to="/pizzas/new">
@@ -362,51 +345,17 @@ export default function PizzasPage() {
       {/* Table View */}
       {filtered.length > 0 && viewMode === 'table' && (
         <Card>
-          <DataTable columns={tableColumns} data={filtered} />
+          <DataTable columns={columns} data={filtered} />
         </Card>
       )}
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog
+      <DeletePizzaDialog
         open={deleteDialog.open}
-        onOpenChange={(open) => {
-          if (!open) setDeleteDialog({ open: false, pizza: null });
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Pizza</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete{' '}
-              <span className="font-semibold text-foreground">{deleteDialog.pizza?.name}</span>?
-              This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialog({ open: false, pizza: null })}
-              disabled={deleteMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                'Delete'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        pizza={deleteDialog.pizza}
+        onClose={() => setDeleteDialog({ open: false, pizza: null })}
+        onConfirm={handleDelete}
+        isPending={deleteMutation.isPending}
+      />
     </div>
   );
 }

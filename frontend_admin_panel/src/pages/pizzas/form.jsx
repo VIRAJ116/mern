@@ -219,6 +219,7 @@ export default function PizzaFormPage() {
                   control={control}
                   render={({ field }) => (
                     <Select
+                      key={field.value}
                       value={field.value}
                       onValueChange={field.onChange}
                       disabled={isSubmitting}
