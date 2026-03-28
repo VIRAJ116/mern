@@ -1,20 +1,18 @@
 // src/routes/index.ts
-import { Router } from "express";
-import { getHealth } from "@/controllers/health.controller.ts";
-import userRoutes from "@/routes/user.routes.ts";
-import authRoutes from "@/routes/auth.routes.ts";
+import { Router } from 'express'
+import userRoutes from '@/routes/user.routes.ts'
+import authRoutes from '@/routes/auth.routes.ts'
+import pizzaRoutes from '@/routes/pizza.routes.ts'
 
-const router = Router();
+const router = Router()
 
 /**
  * Central route aggregator
  */
 
-// Health check endpoint
-router.get("/health", getHealth);
-
 // User routes
-router.use(authRoutes);
-router.use("/users", userRoutes);
+router.use(authRoutes)
+router.use('/users', userRoutes)
+router.use('/pizzas', pizzaRoutes)
 
-export default router;
+export default router

@@ -1,6 +1,6 @@
 // src/middleware/logger.middleware.ts
-import { Request, Response, NextFunction } from "express";
-import { log } from "../utils/logger.ts";
+import { Request, Response, NextFunction } from 'express'
+import { log } from '../utils/logger.ts'
 
 /**
  * Request logging middleware
@@ -13,6 +13,6 @@ export const requestLogger = (
   log.request(req.method, req.path, {
     query: req.query,
     ip: req.ip,
-  });
-  next();
-};
+  })
+  next()
+}

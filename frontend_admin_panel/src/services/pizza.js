@@ -1,7 +1,7 @@
 import api from './axios';
 
 export const getAllPizzas = async (params) => {
-  const response = await api.get('/admin/pizzas', { params });
+  const response = await api.get('/pizzas', { params });
   return response.data;
 };
 

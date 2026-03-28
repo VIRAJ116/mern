@@ -1,0 +1,1 @@
+ALTER TABLE `pizzas` ADD `updated_at` timestamp;
