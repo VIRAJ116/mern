@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react'
 import { Link } from 'react-router'
-import { Search, Star, ChevronRight, Home } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { Search, Star, ChevronRight, Home, AlertCircle } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { MOCK_PIZZAS, MOCK_CATEGORIES } from '@/const/mock-data'
+import { getAllPizzas, getCategories } from '@/services/pizza'
 
 const TAG_COLORS = {
   bestseller: 'bg-amber-500 text-white',
@@ -18,15 +18,25 @@ const TAG_COLORS = {
 function PizzaCard({ pizza }) {
   return (
     <Link
-      to={`/menu/${pizza._id}`}
+      to={`/menu/${pizza.id || pizza._id}`}
       className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10"
     >
       {/* Image area */}
       <div className="relative flex h-48 items-center justify-center overflow-hidden bg-linear-to-br from-primary/10 via-amber-500/5 to-background">
-        <span className="text-8xl transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6">🍕</span>
+        {pizza.imageUrl ? (
+          <img
+            src={pizza.imageUrl}
+            alt={pizza.name}
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+          />
+        ) : (
+          <span className="text-8xl transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6">
+            🍕
+          </span>
+        )}
         {/* Tags */}
         <div className="absolute top-3 left-3 flex flex-wrap gap-1">
-          {pizza.tags.slice(0, 1).map((tag) => (
+          {pizza.tags?.slice(0, 1).map((tag) => (
             <span
               key={tag}
               className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${TAG_COLORS[tag] || 'bg-primary text-white'}`}
@@ -38,7 +48,7 @@ function PizzaCard({ pizza }) {
         {/* Rating */}
         <div className="absolute top-3 right-3 flex items-center gap-1 rounded-full bg-card/90 px-2 py-1 text-xs font-semibold shadow backdrop-blur-sm">
           <Star className="size-3 fill-amber-400 text-amber-400" />
-          {pizza.rating}
+          {pizza.avgRating ?? pizza.rating ?? '—'}
         </div>
       </div>
 
@@ -46,7 +56,7 @@ function PizzaCard({ pizza }) {
         <div className="mb-1 flex items-start justify-between gap-2">
           <h3 className="font-bold leading-tight">{pizza.name}</h3>
           <span className="shrink-0 rounded-md bg-primary/10 px-2 py-0.5 text-sm font-extrabold text-primary">
-            ₹{pizza.basePrice}
+            ₹{pizza.price ?? pizza.basePrice}
           </span>
         </div>
         <p className="flex-1 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
@@ -54,7 +64,7 @@ function PizzaCard({ pizza }) {
         </p>
         <div className="mt-4">
           <Button size="sm" className="w-full gap-2 shadow-sm">
-            Customize & Add
+            Customize &amp; Add
           </Button>
         </div>
       </div>
@@ -76,20 +86,53 @@ function PizzaCardSkeleton() {
   )
 }
 
+const ALL_CATEGORY = { _id: 'all', name: 'All' }
+
 export default function MenuPage() {
   const [activeCategory, setActiveCategory] = useState('all')
   const [search, setSearch] = useState('')
 
+  const {
+    data: pizzasData,
+    isLoading: pizzasLoading,
+    isError: pizzasError,
+  } = useQuery({
+    queryKey: ['pizzas'],
+    queryFn: () => getAllPizzas(),
+  })
+
+  const { data: categoriesData, isLoading: categoriesLoading } = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => getCategories(),
+  })
+
+  const pizzas = useMemo(
+    () => pizzasData?.data?.data ?? [],
+    [pizzasData]
+  )
+  const categories = useMemo(
+    () => [
+      ALL_CATEGORY,
+      ...(categoriesData?.data?.data ?? []),
+    ],
+    [categoriesData]
+  )
+
   const filtered = useMemo(() => {
-    return MOCK_PIZZAS.filter((p) => {
-      const matchCat = activeCategory === 'all' || p.category === activeCategory
+    return pizzas.filter((p) => {
+      const matchCat =
+        activeCategory === 'all' ||
+        p.category === activeCategory ||
+        p.category?._id === activeCategory
       const matchSearch =
         !search ||
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.description.toLowerCase().includes(search.toLowerCase())
+        p.name?.toLowerCase().includes(search.toLowerCase()) ||
+        p.description?.toLowerCase().includes(search.toLowerCase())
       return matchCat && matchSearch
     })
-  }, [activeCategory, search])
+  }, [pizzas, activeCategory, search])
+
+  const isLoading = pizzasLoading || categoriesLoading
 
   return (
     <div className="min-h-screen">
@@ -98,7 +141,10 @@ export default function MenuPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {/* Breadcrumb */}
           <nav className="mb-4 flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Link to="/" className="flex items-center gap-1 hover:text-foreground transition-colors">
+            <Link
+              to="/"
+              className="flex items-center gap-1 hover:text-foreground transition-colors"
+            >
               <Home className="size-3.5" /> Home
             </Link>
             <ChevronRight className="size-3.5" />
@@ -108,29 +154,44 @@ export default function MenuPage() {
             Our Menu 🍕
           </h1>
           <p className="mt-1 text-muted-foreground">
-            50+ hand-crafted pizzas. Customize every bite.
+            Hand-crafted pizzas. Customize every bite.
           </p>
         </div>
       </div>
 
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        {/* Error banner */}
+        {pizzasError && (
+          <div className="mb-6 flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <AlertCircle className="size-4 shrink-0" />
+            Failed to load pizzas. Please try refreshing the page.
+          </div>
+        )}
+
         {/* Filters row */}
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center">
           {/* Categories */}
           <div className="flex gap-2 overflow-x-auto pb-1 flex-1">
-            {MOCK_CATEGORIES.map((cat) => (
-              <button
-                key={cat._id}
-                onClick={() => setActiveCategory(cat._id)}
-                className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold transition-all ${
-                  activeCategory === cat._id
-                    ? 'bg-primary text-white shadow-md shadow-primary/30'
-                    : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'
-                }`}
-              >
-                {cat.name}
-              </button>
-            ))}
+            {categoriesLoading
+              ? Array.from({ length: 5 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-8 w-20 shrink-0 animate-pulse rounded-full bg-muted"
+                  />
+                ))
+              : categories.map((cat) => (
+                  <button
+                    key={cat._id}
+                    onClick={() => setActiveCategory(cat._id)}
+                    className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold transition-all ${
+                      activeCategory === cat._id
+                        ? 'bg-primary text-white shadow-md shadow-primary/30'
+                        : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'
+                    }`}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
           </div>
 
           {/* Search */}
@@ -145,32 +206,48 @@ export default function MenuPage() {
           </div>
         </div>
 
-        {/* Grid */}
-        {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
-            <span className="text-6xl">😔</span>
-            <p className="text-xl font-bold">No pizzas found</p>
-            <p className="text-muted-foreground">Try a different search or category.</p>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSearch('')
-                setActiveCategory('all')
-              }}
-            >
-              Clear Filters
-            </Button>
+        {/* Skeleton grid */}
+        {isLoading && (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <PizzaCardSkeleton key={i} />
+            ))}
           </div>
-        ) : (
+        )}
+
+        {/* Pizza grid */}
+        {!isLoading && (
           <>
-            <p className="mb-4 text-sm text-muted-foreground">
-              Showing {filtered.length} pizza{filtered.length !== 1 ? 's' : ''}
-            </p>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {filtered.map((pizza) => (
-                <PizzaCard key={pizza._id} pizza={pizza} />
-              ))}
-            </div>
+            {filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
+                <span className="text-6xl">😔</span>
+                <p className="text-xl font-bold">No pizzas found</p>
+                <p className="text-muted-foreground">
+                  Try a different search or category.
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearch('')
+                    setActiveCategory('all')
+                  }}
+                >
+                  Clear Filters
+                </Button>
+              </div>
+            ) : (
+              <>
+                <p className="mb-4 text-sm text-muted-foreground">
+                  Showing {filtered.length} pizza
+                  {filtered.length !== 1 ? 's' : ''}
+                </p>
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {filtered.map((pizza) => (
+                    <PizzaCard key={pizza.id || pizza._id} pizza={pizza} />
+                  ))}
+                </div>
+              </>
+            )}
           </>
         )}
       </div>
