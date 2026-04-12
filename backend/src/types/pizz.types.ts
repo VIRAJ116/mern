@@ -15,6 +15,8 @@ export interface PizzaResponse {
   category: string
   tags: string[]
   imageUrl: string
+  avgRating: number
+  ratingCount: number
   createdAt: string
   updatedAt?: string
 }

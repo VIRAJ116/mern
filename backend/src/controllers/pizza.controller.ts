@@ -1,13 +1,28 @@
-import { createPizza, deletePizza, editPizza, getAllPizzas, getPizzaById } from '@/services/pizza.service.ts'
-import { AddPizzaRequest, PizzaListResult, PizzaResponse } from '@/types/pizz.types.ts'
+import {
+  createPizza,
+  deletePizza,
+  editPizza,
+  getAllPizzas,
+  getPizzaById,
+  getDistinctCategories,
+} from '@/services/pizza.service.ts'
+import {
+  AddPizzaRequest,
+  PizzaListResult,
+  PizzaResponse,
+} from '@/types/pizz.types.ts'
 import { ApiErrorResponse, ApiSuccessResponse } from '@/types/response.types.ts'
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
 
 /**
  * Add a new pizza
  * POST /api/admin/pizzas
  */
-export const addPizza = async (req: Request, res: Response): Promise<void> => {
+export const addPizza = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   try {
     const pizzaData: AddPizzaRequest = req.body
     const result = await createPizza(pizzaData)
@@ -27,11 +42,7 @@ export const addPizza = async (req: Request, res: Response): Promise<void> => {
     }
     res.status(201).json(response)
   } catch (error) {
-    const response: ApiErrorResponse = {
-      success: false,
-      error: 'Internal server error',
-    }
-    res.status(500).json(response)
+    next(error)
   }
 }
 
@@ -39,7 +50,11 @@ export const addPizza = async (req: Request, res: Response): Promise<void> => {
  * Delete a pizza
  * DELETE /api/admin/pizzas/:id
  */
-export const removePizza = async (req: Request, res: Response): Promise<void> => {
+export const removePizza = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   try {
     const { id } = req.params
     const result = await deletePizza(id)
@@ -52,13 +67,11 @@ export const removePizza = async (req: Request, res: Response): Promise<void> =>
       res.status(statusCode).json(response)
       return
     }
-    res.status(200).json({ success: true, message: 'Pizza deleted successfully' })
+    res
+      .status(200)
+      .json({ success: true, message: 'Pizza deleted successfully' })
   } catch (error) {
-    const response: ApiErrorResponse = {
-      success: false,
-      error: 'Internal server error',
-    }
-    res.status(500).json(response)
+    next(error)
   }
 }
 
@@ -66,7 +79,11 @@ export const removePizza = async (req: Request, res: Response): Promise<void> =>
  * Get a single pizza by ID
  * GET /api/admin/pizzas/:id
  */
-export const getPizza = async (req: Request, res: Response): Promise<void> => {
+export const getPizza = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   try {
     const { id } = req.params
     const result = await getPizzaById(id)
@@ -81,7 +98,7 @@ export const getPizza = async (req: Request, res: Response): Promise<void> => {
     }
     res.status(200).json(response)
   } catch (error) {
-    res.status(500).json({ success: false, error: 'Internal server error' })
+    next(error)
   }
 }
 
@@ -89,7 +106,11 @@ export const getPizza = async (req: Request, res: Response): Promise<void> => {
  * Edit a pizza
  * PATCH /api/admin/pizzas/:id
  */
-export const updatePizza = async (req: Request, res: Response): Promise<void> => {
+export const updatePizza = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   try {
     const { id } = req.params
     const pizzaData: AddPizzaRequest = req.body
@@ -99,25 +120,44 @@ export const updatePizza = async (req: Request, res: Response): Promise<void> =>
       res.status(statusCode).json({ success: false, error: result.error })
       return
     }
-    res.status(200).json({ success: true, message: 'Pizza updated successfully' })
+    res
+      .status(200)
+      .json({ success: true, message: 'Pizza updated successfully' })
   } catch (error) {
-    res.status(500).json({ success: false, error: 'Internal server error' })
+    next(error)
   }
 }
 
-export const getPizzas = async (req: Request, res: Response): Promise<void> => {
+/**
+ * Get all pizzas
+ * GET /pizzas
+ */
+export const getPizzas = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   try {
-    const result = await getAllPizzas()
-    const response: ApiSuccessResponse<PizzaListResult> = {
-      success: true,
-      data: result,
-    }
-    res.status(200).json(response)
+    const { data, total } = await getAllPizzas()
+    res.status(200).json({ success: true, data, total })
   } catch (error) {
-    const response: ApiErrorResponse = {
-      success: false,
-      error: 'Internal server error',
-    }
-    res.status(500).json(response)
+    next(error)
+  }
+}
+
+/**
+ * Get distinct pizza categories
+ * GET /categories
+ */
+export const getCategories = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const categories = await getDistinctCategories()
+    res.status(200).json({ success: true, data: categories })
+  } catch (error) {
+    next(error)
   }
 }

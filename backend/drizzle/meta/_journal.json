@@ -29,6 +29,13 @@
       "when": 1774657834499,
       "tag": "0003_add_updated_at_to_pizzas",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1776026785644,
+      "tag": "0004_new_bastion",
+      "breakpoints": true
     }
   ]
 }

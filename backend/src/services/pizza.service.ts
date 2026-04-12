@@ -51,6 +51,8 @@ export const createPizza = async (
       category: createdPizza.category,
       tags: JSON.parse(createdPizza.tags || '[]'),
       imageUrl: createdPizza.imageUrl,
+      avgRating: Number(createdPizza.avgRating || 0),
+      ratingCount: Number(createdPizza.ratingCount || 0),
       createdAt: createdPizza.createdAt,
       updatedAt: createdPizza.updatedAt ?? undefined,
     }
@@ -107,6 +109,8 @@ export const getAllPizzas = async (): Promise<PizzaListResult> => {
       category: pizza.category,
       tags: JSON.parse(pizza.tags || '[]'),
       imageUrl: pizza.imageUrl,
+      avgRating: Number(pizza.avgRating || 0),
+      ratingCount: Number(pizza.ratingCount || 0),
       createdAt: pizza.createdAt,
       updatedAt: pizza.updatedAt ?? undefined,
     }))
@@ -135,6 +139,8 @@ export const getPizzaById = async (id: string): Promise<AddPizzaResult> => {
         category: pizza.category,
         tags: JSON.parse(pizza.tags || '[]'),
         imageUrl: pizza.imageUrl,
+        avgRating: Number(pizza.avgRating || 0),
+        ratingCount: Number(pizza.ratingCount || 0),
         createdAt: pizza.createdAt,
         updatedAt: pizza.updatedAt ?? undefined,
       },
@@ -171,4 +177,18 @@ export const editPizza = async (
   } catch (error: any) {
     return { success: false, error: error.message || 'Something went wrong' }
   }
+}
+
+export const getDistinctCategories = async (): Promise<
+  { _id: string; name: string }[]
+> => {
+  const rows = await db
+    .selectDistinct({ category: pizzas.category })
+    .from(pizzas)
+    .where(isNull(pizzas.deletedAt))
+
+  return rows.map((row) => ({
+    _id: row.category,
+    name: row.category.charAt(0).toUpperCase() + row.category.slice(1),
+  }))
 }

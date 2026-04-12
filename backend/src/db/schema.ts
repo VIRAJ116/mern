@@ -5,6 +5,7 @@ import {
   varchar,
   timestamp,
   decimal,
+  uniqueIndex,
 } from 'drizzle-orm/mysql-core'
 
 // Example: Define a users table
@@ -31,7 +32,37 @@ export const pizzas = mysqlTable('pizzas', {
   category: varchar('category', { length: 50 }).notNull(),
   tags: varchar('tags', { length: 256 }).notNull(),
   imageUrl: varchar('image_url', { length: 500 }).notNull(),
+  avgRating: decimal('avg_rating', { precision: 3, scale: 2 }).default('0'),
+  ratingCount: decimal('rating_count', { precision: 10, scale: 0 }).default(
+    '0'
+  ),
   createdAt: timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { mode: 'string' }),
   deletedAt: timestamp('deleted_at', { mode: 'string' }),
 })
+
+export const ratings = mysqlTable(
+  'ratings',
+  {
+    id: char('id', { length: 36 })
+      .$defaultFn(() => crypto.randomUUID())
+      .primaryKey(),
+    userId: char('user_id', { length: 36 })
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    pizzaId: char('pizza_id', { length: 36 })
+      .notNull()
+      .references(() => pizzas.id, { onDelete: 'cascade' }),
+    rating: decimal('rating', { precision: 2, scale: 1 }).notNull(),
+    createdAt: timestamp('created_at', { mode: 'string' })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { mode: 'string' }),
+  },
+  (table) => ({
+    uniqueUserPizza: uniqueIndex('user_pizza_unique').on(
+      table.userId,
+      table.pizzaId
+    ),
+  })
+)
