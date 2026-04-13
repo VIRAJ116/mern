@@ -49,7 +49,7 @@ export default function CategoriesPage() {
     queryFn: getCategories,
   });
 
-  const categories = data?.data || data || [];
+  const categories = data?.data ?? [];
 
   const {
     register,
@@ -111,7 +111,7 @@ export default function CategoriesPage() {
 
   const onSubmit = (data) => {
     if (formDialog.category) {
-      updateMutation.mutate({ id: formDialog.category._id, data });
+      updateMutation.mutate({ id: formDialog.category.id, data });
     } else {
       createMutation.mutate(data);
     }
@@ -119,7 +119,7 @@ export default function CategoriesPage() {
 
   const handleDelete = () => {
     if (deleteDialog.category) {
-      deleteMutation.mutate(deleteDialog.category._id);
+      deleteMutation.mutate(deleteDialog.category.id);
     }
   };
 
@@ -178,7 +178,7 @@ export default function CategoriesPage() {
             </TableHeader>
             <TableBody>
               {categories.map((category, index) => (
-                <TableRow key={category._id}>
+                <TableRow key={category.id}>
                   <TableCell className="text-muted-foreground">{index + 1}</TableCell>
                   <TableCell className="font-medium">{category.name}</TableCell>
                   <TableCell className="text-right">

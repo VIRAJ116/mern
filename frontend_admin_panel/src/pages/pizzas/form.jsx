@@ -9,6 +9,7 @@ import { ArrowLeft, Loader2, Save } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { getPizzaById, createPizza, updatePizza } from '@/services/pizza';
+import { getCategories } from '@/services/category';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -58,6 +59,13 @@ export default function PizzaFormPage() {
     queryFn: () => getPizzaById(id),
     enabled: isEdit,
   });
+
+  const { data: categoriesData, isLoading: categoriesLoading } = useQuery({
+    queryKey: ['categories'],
+    queryFn: getCategories,
+  });
+
+  const categoriesList = categoriesData?.data ?? [];
 
   const pizza = pizzaData?.data || pizzaData;
 
@@ -222,19 +230,21 @@ export default function PizzaFormPage() {
                       key={field.value}
                       value={field.value}
                       onValueChange={field.onChange}
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || categoriesLoading}
                     >
                       <SelectTrigger
                         className={cn(
                           errors.category && 'border-destructive focus-visible:ring-destructive'
                         )}
                       >
-                        <SelectValue placeholder="Select category" />
+                        <SelectValue placeholder={categoriesLoading ? 'Loading...' : 'Select category'} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="veg">Veg</SelectItem>
-                        <SelectItem value="non-veg">Non-Veg</SelectItem>
-                        <SelectItem value="special">Special</SelectItem>
+                        {categoriesList.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.slug}>
+                            {cat.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   )}

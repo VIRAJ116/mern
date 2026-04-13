@@ -51,7 +51,7 @@ export default function ToppingsPage() {
     queryFn: getToppings,
   });
 
-  const toppings = data?.data || data || [];
+  const toppings = data?.data ?? [];
 
   const {
     register,
@@ -117,7 +117,7 @@ export default function ToppingsPage() {
 
   const onSubmit = (data) => {
     if (formDialog.topping) {
-      updateMutation.mutate({ id: formDialog.topping._id, data });
+      updateMutation.mutate({ id: formDialog.topping.id, data });
     } else {
       createMutation.mutate(data);
     }
@@ -125,7 +125,7 @@ export default function ToppingsPage() {
 
   const handleDelete = () => {
     if (deleteDialog.topping) {
-      deleteMutation.mutate(deleteDialog.topping._id);
+      deleteMutation.mutate(deleteDialog.topping.id);
     }
   };
 
@@ -185,7 +185,7 @@ export default function ToppingsPage() {
             </TableHeader>
             <TableBody>
               {toppings.map((topping) => (
-                <TableRow key={topping._id}>
+                <TableRow key={topping.id}>
                   <TableCell>
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/5 text-lg">
                       {topping.icon || '🍕'}
