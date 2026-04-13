@@ -86,7 +86,7 @@ function PizzaCardSkeleton() {
   )
 }
 
-const ALL_CATEGORY = { _id: 'all', name: 'All' }
+const ALL_CATEGORY = { id: 'all', name: 'All', slug: 'all' }
 
 export default function MenuPage() {
   const [activeCategory, setActiveCategory] = useState('all')
@@ -122,8 +122,7 @@ export default function MenuPage() {
     return pizzas.filter((p) => {
       const matchCat =
         activeCategory === 'all' ||
-        p.category === activeCategory ||
-        p.category?._id === activeCategory
+        p.category === activeCategory
       const matchSearch =
         !search ||
         p.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -181,10 +180,10 @@ export default function MenuPage() {
                 ))
               : categories.map((cat) => (
                   <button
-                    key={cat._id}
-                    onClick={() => setActiveCategory(cat._id)}
+                    key={cat.id || cat.slug}
+                    onClick={() => setActiveCategory(cat.slug)}
                     className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold transition-all ${
-                      activeCategory === cat._id
+                      activeCategory === cat.slug
                         ? 'bg-primary text-white shadow-md shadow-primary/30'
                         : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground'
                     }`}
