@@ -36,6 +36,13 @@
       "when": 1776026785644,
       "tag": "0004_new_bastion",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1776110905107,
+      "tag": "0005_quiet_valeria_richards",
+      "breakpoints": true
     }
   ]
 }

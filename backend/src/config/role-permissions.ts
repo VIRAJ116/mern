@@ -13,6 +13,16 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.PIZZA_READ,
     Permission.PIZZA_UPDATE,
     Permission.PIZZA_DELETE,
+    // All topping permissions
+    Permission.TOPPING_CREATE,
+    Permission.TOPPING_READ,
+    Permission.TOPPING_UPDATE,
+    Permission.TOPPING_DELETE,
+    // All category permissions
+    Permission.CATEGORY_CREATE,
+    Permission.CATEGORY_READ,
+    Permission.CATEGORY_UPDATE,
+    Permission.CATEGORY_DELETE,
     // Other
     Permission.PROFILE_READ,
     Permission.REPORT_VIEW,
@@ -28,6 +38,16 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.PIZZA_READ,
     Permission.PIZZA_UPDATE,
     Permission.PIZZA_DELETE,
+    // All topping permissions
+    Permission.TOPPING_CREATE,
+    Permission.TOPPING_READ,
+    Permission.TOPPING_UPDATE,
+    Permission.TOPPING_DELETE,
+    // All category permissions
+    Permission.CATEGORY_CREATE,
+    Permission.CATEGORY_READ,
+    Permission.CATEGORY_UPDATE,
+    Permission.CATEGORY_DELETE,
     // Other
     Permission.PROFILE_READ,
     Permission.REPORT_VIEW,
@@ -37,5 +57,10 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.USER_READ,
     // Users can only view pizzas
     Permission.PIZZA_READ,
+    // Users can only view toppings (via public endpoint, but permission tracked)
+    Permission.TOPPING_READ,
+    // Users can view categories
+    Permission.CATEGORY_READ,
   ],
 };
+

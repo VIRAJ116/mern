@@ -4,7 +4,6 @@ import {
   editPizza,
   getAllPizzas,
   getPizzaById,
-  getDistinctCategories,
 } from '@/services/pizza.service.ts'
 import {
   AddPizzaRequest,
@@ -145,19 +144,3 @@ export const getPizzas = async (
   }
 }
 
-/**
- * Get distinct pizza categories
- * GET /categories
- */
-export const getCategories = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
-  try {
-    const categories = await getDistinctCategories()
-    res.status(200).json({ success: true, data: categories })
-  } catch (error) {
-    next(error)
-  }
-}

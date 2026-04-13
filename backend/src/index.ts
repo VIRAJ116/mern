@@ -39,5 +39,5 @@ app.use(errorHandler)
 app.listen(PORT, () => {
   log.success(`Server is running on port ${PORT}`)
   log.info(`Environment: ${process.env.NODE_ENV || 'development'}`)
-  log.info(`CORS enabled for: ${process.env.CORS_ORIGIN || '*'}`)
+  log.info(`CORS allowed origins: ${process.env.CORS_ORIGIN || 'http://localhost:5173'}`)
 })

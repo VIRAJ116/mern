@@ -6,6 +6,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "tsx watch src/index.ts",
     "db:seed": "tsx src/db/seed.ts",
+    "db:seed-toppings": "tsx src/db/seed-toppings.ts",
+    "db:seed-categories": "tsx src/db/seed-categories.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio"

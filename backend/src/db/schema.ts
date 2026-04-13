@@ -6,6 +6,7 @@ import {
   timestamp,
   decimal,
   uniqueIndex,
+  boolean,
 } from 'drizzle-orm/mysql-core'
 
 // Example: Define a users table
@@ -66,3 +67,27 @@ export const ratings = mysqlTable(
     ),
   })
 )
+
+export const toppings = mysqlTable('toppings', {
+  id: char('id', { length: 36 })
+    .$defaultFn(() => crypto.randomUUID())
+    .primaryKey(),
+  name: varchar('name', { length: 100 }).notNull(),
+  price: decimal('price', { precision: 10, scale: 2 }).notNull(),
+  icon: varchar('icon', { length: 10 }).notNull().default('🍕'),
+  isAvailable: boolean('is_available').notNull().default(true),
+  createdAt: timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { mode: 'string' }),
+  deletedAt: timestamp('deleted_at', { mode: 'string' }),
+})
+
+export const categories = mysqlTable('categories', {
+  id: char('id', { length: 36 })
+    .$defaultFn(() => crypto.randomUUID())
+    .primaryKey(),
+  name: varchar('name', { length: 100 }).notNull(),
+  slug: varchar('slug', { length: 100 }).notNull().unique(),
+  createdAt: timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { mode: 'string' }),
+  deletedAt: timestamp('deleted_at', { mode: 'string' }),
+})
