@@ -91,3 +91,41 @@ export const categories = mysqlTable('categories', {
   updatedAt: timestamp('updated_at', { mode: 'string' }),
   deletedAt: timestamp('deleted_at', { mode: 'string' }),
 })
+
+export const orders = mysqlTable('orders', {
+  id: char('id', { length: 36 })
+    .$defaultFn(() => crypto.randomUUID())
+    .primaryKey(),
+  userId: char('user_id', { length: 36 })
+    .notNull()
+    .references(() => users.id),
+  subtotal: decimal('subtotal', { precision: 10, scale: 2 }).notNull(),
+  deliveryFee: decimal('delivery_fee', { precision: 10, scale: 2 }).notNull(),
+  totalAmount: decimal('total_amount', { precision: 10, scale: 2 }).notNull(),
+  status: varchar('status', { length: 50 }).notNull().default('pending'), // pending, preparing, out_for_delivery, delivered, cancelled
+  paymentMethod: varchar('payment_method', { length: 50 }).notNull().default('cod'), // cod, online
+  paymentStatus: varchar('payment_status', { length: 50 }).notNull().default('pending'), // pending, completed, failed
+  razorpayOrderId: varchar('razorpay_order_id', { length: 100 }), // only for online
+  deliveryAddress: varchar('delivery_address', { length: 1500 }).notNull(), // storing stringified json
+  createdAt: timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { mode: 'string' }),
+})
+
+export const orderItems = mysqlTable('order_items', {
+  id: char('id', { length: 36 })
+    .$defaultFn(() => crypto.randomUUID())
+    .primaryKey(),
+  orderId: char('order_id', { length: 36 })
+    .notNull()
+    .references(() => orders.id, { onDelete: 'cascade' }),
+  pizzaId: char('pizza_id', { length: 36 })
+    .notNull()
+    .references(() => pizzas.id),
+  size: varchar('size', { length: 50 }).notNull(),
+  crust: varchar('crust', { length: 50 }).notNull(),
+  quantity: decimal('quantity', { precision: 10, scale: 0 }).notNull().default('1'),
+  unitPrice: decimal('unit_price', { precision: 10, scale: 2 }).notNull(),
+  toppings: varchar('toppings', { length: 1000 }), // stringified json array of topping ids
+  createdAt: timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { mode: 'string' }),
+})
