@@ -2,6 +2,8 @@ import { Link } from 'react-router'
 import { Package, ChevronRight, Clock, CheckCircle2, Truck, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
+import { useQuery } from '@tanstack/react-query'
+import { getMyOrders } from '@/services/order'
 
 // Mock orders for UI development — remove when API is ready
 const MOCK_ORDERS = [
@@ -61,11 +63,8 @@ function formatDate(iso) {
 }
 
 export default function OrdersPage() {
-  // Uncomment when API is ready:
-  // const { data, isLoading } = useQuery({ queryKey: ['my-orders'], queryFn: getMyOrders })
-  // const orders = data?.data?.orders || []
-  const orders = MOCK_ORDERS
-  const isLoading = false
+  const { data, isLoading } = useQuery({ queryKey: ['my-orders'], queryFn: getMyOrders })
+  const orders = data?.data?.data || []
 
   if (isLoading) {
     return (

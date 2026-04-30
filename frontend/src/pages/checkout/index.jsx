@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { useMutation } from '@tanstack/react-query'
-import { createOrder, verifyPayment } from '@/services/order'
+import { createOrder, verifyPayment, cancelOrder } from '@/services/order'
 import useCartStore from '@/store/cart.store'
 
 const loadRazorpay = () => {
@@ -85,8 +85,6 @@ export default function CheckoutPage() {
   const { mutate: placeOrder, isPending } = useMutation({
     mutationFn: (payload) => createOrder(payload),
     onSuccess: async (res) => {
-      clearCart()
-
       const responseData = res?.data?.data || res?.data
       const orderIdObj = responseData?.orderId || 'ORD' + Date.now()
 
@@ -129,6 +127,7 @@ export default function CheckoutPage() {
               toast.dismiss()
 
               if (verifyRes?.data?.success) {
+                clearCart()
                 toast.success('Payment successful!')
                 navigate('/order-confirmation', {
                   state: { orderId: orderIdObj },
@@ -147,16 +146,27 @@ export default function CheckoutPage() {
           theme: {
             color: '#eab308', // Match the primary color
           },
+          modal: {
+            ondismiss: async function () {
+              try {
+                await cancelOrder(orderIdObj)
+              } catch (e) {}
+            },
+          },
         }
 
         const paymentObject = new window.Razorpay(options)
-        paymentObject.on('payment.failed', function (response) {
+        paymentObject.on('payment.failed', async function (response) {
           toast.error(response.error.description)
+          try {
+            await cancelOrder(orderIdObj)
+          } catch (e) {}
         })
         toast.dismiss()
         paymentObject.open()
       } else {
         toast.success('Order placed successfully via COD!')
+        clearCart()
         navigate('/order-confirmation', { state: { orderId: orderIdObj } })
       }
     },

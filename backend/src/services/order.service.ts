@@ -3,8 +3,10 @@ import { orders, orderItems, pizzas, toppings } from '@/db/schema.ts'
 import {
   CreateOrderRequest,
   RazorpayVerificationRequest,
+  GetOrdersResponse,
+  GetOrderByIdResponse,
 } from '@/types/order.types.ts'
-import { inArray, eq } from 'drizzle-orm'
+import { inArray, eq, and, desc } from 'drizzle-orm'
 import Razorpay from 'razorpay'
 import crypto from 'crypto'
 import { log } from '@/utils/logger.ts'
@@ -194,3 +196,165 @@ export const verifyPaymentSignature = async (
     return { success: false, error: 'Payment verification failed' }
   }
 }
+
+export const cancelOrderService = async (orderId: string, userId: string) => {
+  try {
+    await db
+      .update(orders)
+      .set({ status: 'cancelled', paymentStatus: 'failed' })
+      .where(
+        and(
+          eq(orders.id, orderId),
+          eq(orders.userId, userId),
+          eq(orders.status, 'pending')
+        )
+      )
+
+    return { success: true }
+  } catch (error) {
+    log.error('Error cancelling order', { error })
+    return { success: false, error: 'Failed to cancel order' }
+  }
+}
+
+export const getOrdersService = async (
+  userId: string
+): Promise<GetOrdersResponse> => {
+  try {
+    const userOrders = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.userId, userId))
+      .orderBy(desc(orders.createdAt))
+
+    if (userOrders.length === 0) {
+      return { success: true, data: [] }
+    }
+
+    const orderIds = userOrders.map((o) => o.id)
+    const items = await db
+      .select()
+      .from(orderItems)
+      .where(inArray(orderItems.orderId, orderIds))
+
+    const pizzaIds = [...new Set(items.map((i) => i.pizzaId))]
+    let pizzasData: any[] = []
+    if (pizzaIds.length > 0) {
+      pizzasData = await db
+        .select()
+        .from(pizzas)
+        .where(inArray(pizzas.id, pizzaIds))
+    }
+    const pizzaMap = new Map(pizzasData.map((p) => [p.id, p]))
+
+    const formattedOrders = userOrders.map((order) => {
+      const orderItemsList = items
+        .filter((i) => i.orderId === order.id)
+        .map((item) => ({
+          name: pizzaMap.get(item.pizzaId)?.name || 'Unknown Pizza',
+          qty: Number(item.quantity),
+        }))
+
+      return {
+        _id: order.id,
+        createdAt: order.createdAt,
+        status: order.status,
+        total: Number(order.totalAmount),
+        items: orderItemsList,
+      }
+    })
+
+    return { success: true, data: formattedOrders }
+  } catch (error) {
+    log.error('Error fetching orders', { error })
+    return { success: false, error: 'Failed to fetch orders' }
+  }
+}
+
+export const getOrderByIdService = async (
+  orderId: string,
+  userId: string
+): Promise<GetOrderByIdResponse> => {
+  try {
+    const [order] = await db
+      .select()
+      .from(orders)
+      .where(and(eq(orders.id, orderId), eq(orders.userId, userId)))
+
+    if (!order) {
+      return { success: false, error: 'Order not found' }
+    }
+
+    const items = await db
+      .select()
+      .from(orderItems)
+      .where(eq(orderItems.orderId, orderId))
+
+    const pizzaIds = [...new Set(items.map((i) => i.pizzaId))]
+    let pizzasData: any[] = []
+    if (pizzaIds.length > 0) {
+      pizzasData = await db
+        .select()
+        .from(pizzas)
+        .where(inArray(pizzas.id, pizzaIds))
+    }
+    const pizzaMap = new Map(pizzasData.map((p) => [p.id, p]))
+
+    let allToppingIds: string[] = []
+    items.forEach((i) => {
+      if (i.toppings) {
+        try {
+          const tIds = JSON.parse(i.toppings)
+          allToppingIds = [...allToppingIds, ...tIds]
+        } catch (e) {}
+      }
+    })
+    const uniqueToppingIds = [...new Set(allToppingIds)]
+    let toppingsData: any[] = []
+    if (uniqueToppingIds.length > 0) {
+      toppingsData = await db
+        .select()
+        .from(toppings)
+        .where(inArray(toppings.id, uniqueToppingIds))
+    }
+    const toppingMap = new Map(toppingsData.map((t) => [t.id, t.name]))
+
+    const formattedItems = items.map((item) => {
+      let itemToppings: string[] = []
+      if (item.toppings) {
+        try {
+          const tIds = JSON.parse(item.toppings)
+          itemToppings = tIds.map((tId: string) => toppingMap.get(tId) || 'Unknown')
+        } catch (e) {}
+      }
+
+      return {
+        id: item.id,
+        name: pizzaMap.get(item.pizzaId)?.name || 'Unknown Pizza',
+        size: item.size,
+        crust: item.crust,
+        toppings: itemToppings,
+        quantity: Number(item.quantity),
+        unitPrice: Number(item.unitPrice),
+      }
+    })
+
+    const formattedOrder = {
+      _id: order.id,
+      createdAt: order.createdAt,
+      status: order.status,
+      paymentMethod: order.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment',
+      deliveryAddress: typeof order.deliveryAddress === 'string' ? JSON.parse(order.deliveryAddress) : order.deliveryAddress,
+      items: formattedItems,
+      subtotal: Number(order.subtotal),
+      deliveryFee: Number(order.deliveryFee),
+      total: Number(order.totalAmount),
+    }
+
+    return { success: true, data: formattedOrder }
+  } catch (error) {
+    log.error('Error fetching order by id', { error })
+    return { success: false, error: 'Failed to fetch order' }
+  }
+}
+

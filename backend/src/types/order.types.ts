@@ -31,3 +31,50 @@ export interface RazorpayVerificationRequest {
   razorpay_payment_id: string
   razorpay_signature: string
 }
+
+export interface OrderSummaryItem {
+  name: string
+  qty: number
+}
+
+export interface OrderSummary {
+  _id: string
+  createdAt: string
+  status: string
+  total: number
+  items: OrderSummaryItem[]
+}
+
+export interface GetOrdersResponse {
+  success: boolean
+  data?: OrderSummary[]
+  error?: string
+}
+
+export interface OrderDetailItem {
+  id: string
+  name: string
+  size: string
+  crust: string
+  toppings: string[]
+  quantity: number
+  unitPrice: number
+}
+
+export interface OrderDetail {
+  _id: string
+  createdAt: string
+  status: string
+  paymentMethod: string
+  deliveryAddress: DeliveryAddress | any
+  items: OrderDetailItem[]
+  subtotal: number
+  deliveryFee: number
+  total: number
+}
+
+export interface GetOrderByIdResponse {
+  success: boolean
+  data?: OrderDetail
+  error?: string
+}

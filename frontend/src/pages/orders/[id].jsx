@@ -9,6 +9,9 @@ import {
   XCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
+import { useQuery } from '@tanstack/react-query'
+import { getOrderById } from '@/services/order'
 
 const MOCK_ORDER = {
   _id: 'ORD001',
@@ -79,8 +82,29 @@ const STATUS_ORDER = ['placed', 'preparing', 'out-for-delivery', 'delivered']
 
 export default function OrderDetailPage() {
   const { id } = useParams()
-  // Replace with: useQuery({ queryKey: ['order', id], queryFn: () => getOrderById(id) })
-  const order = { ...MOCK_ORDER, _id: id }
+  const { data, isLoading } = useQuery({ queryKey: ['order', id], queryFn: () => getOrderById(id) })
+  
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Spinner className="size-8" />
+      </div>
+    )
+  }
+
+  const order = data?.data?.data || null
+  if (!order) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center flex-col gap-4 text-center px-4">
+        <XCircle className="size-12 text-muted-foreground" />
+        <h2 className="text-2xl font-bold">Order not found</h2>
+        <Button asChild variant="outline">
+          <Link to="/orders">Go back to orders</Link>
+        </Button>
+      </div>
+    )
+  }
+
   const currentStepIdx = STATUS_ORDER.indexOf(order.status)
 
   return (
