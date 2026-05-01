@@ -2,9 +2,27 @@ import { Router } from 'express'
 import { authenticate } from '@/middleware/auth.middleware.ts'
 import { authorizePermission } from '@/middleware/permission.middleware.ts'
 import { Permission } from '@/types/permission.types.ts'
-import { addPizza, getPizza, removePizza, updatePizza } from '@/controllers/pizza.controller.ts'
-import { addTopping, updateToppingById, removeTopping } from '@/controllers/topping.controller.ts'
-import { addCategory, updateCategoryById, removeCategory } from '@/controllers/category.controller.ts'
+import {
+  addPizza,
+  getPizza,
+  removePizza,
+  updatePizza,
+} from '@/controllers/pizza.controller.ts'
+import {
+  addTopping,
+  updateToppingById,
+  removeTopping,
+} from '@/controllers/topping.controller.ts'
+import {
+  addCategory,
+  updateCategoryById,
+  removeCategory,
+} from '@/controllers/category.controller.ts'
+import {
+  getAllOrdersAdmin,
+  getOrderByIdAdmin,
+  updateOrderStatusAdmin,
+} from '@/controllers/order.controller.ts'
 
 const router = Router()
 
@@ -94,5 +112,30 @@ router.delete(
   removeCategory
 )
 
-export default router
+// ─── Order admin routes ───────────────────────────────────────────────────────
 
+// GET /api/admin/orders - List all orders with pagination, filters, search
+router.get(
+  '/orders',
+  authenticate,
+  authorizePermission(Permission.ORDER_READ),
+  getAllOrdersAdmin
+)
+
+// GET /api/admin/orders/:id - Get a single order (any user's)
+router.get(
+  '/orders/:id',
+  authenticate,
+  authorizePermission(Permission.ORDER_READ),
+  getOrderByIdAdmin
+)
+
+// PATCH /api/admin/orders/:id/status - Update order status
+router.patch(
+  '/orders/:id/status',
+  authenticate,
+  authorizePermission(Permission.ORDER_UPDATE),
+  updateOrderStatusAdmin
+)
+
+export default router

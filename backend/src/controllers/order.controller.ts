@@ -5,6 +5,9 @@ import {
   cancelOrderService,
   getOrdersService,
   getOrderByIdService,
+  getAllOrdersAdminService,
+  getOrderByIdAdminService,
+  updateOrderStatusAdminService,
 } from '@/services/order.service.ts'
 import {
   CreateOrderRequest,
@@ -159,6 +162,85 @@ export const getOrderById = async (
     }
 
     res.status(200).json({ success: true, data: result.data })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const getAllOrdersAdmin = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const page = parseInt(req.query.page as string) || 1
+    const limit = parseInt(req.query.limit as string) || 10
+    const status = req.query.status as string | undefined
+    const search = req.query.search as string | undefined
+
+    const result = await getAllOrdersAdminService({
+      page,
+      limit,
+      status,
+      search,
+    })
+
+    if (!result.success) {
+      res.status(400).json({ success: false, error: result.error })
+      return
+    }
+
+    res.status(200).json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const getOrderByIdAdmin = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const orderId = req.params.id
+
+    const result = await getOrderByIdAdminService(orderId)
+
+    if (!result.success) {
+      res.status(404).json({ success: false, error: result.error })
+      return
+    }
+
+    res.status(200).json({ success: true, data: result.data })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const updateOrderStatusAdmin = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const orderId = req.params.id
+    const { status } = req.body
+
+    if (!status) {
+      res.status(400).json({ success: false, error: 'Status is required' })
+      return
+    }
+
+    const result = await updateOrderStatusAdminService(orderId, status)
+
+    if (!result.success) {
+      res.status(400).json({ success: false, error: result.error })
+      return
+    }
+
+    res
+      .status(200)
+      .json({ success: true, message: 'Order status updated successfully' })
   } catch (error) {
     next(error)
   }

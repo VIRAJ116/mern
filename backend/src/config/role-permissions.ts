@@ -1,5 +1,5 @@
-import { Role } from "@/types/auth.types.ts";
-import { Permission } from "@/types/permission.types.ts";
+import { Role } from '@/types/auth.types.ts'
+import { Permission } from '@/types/permission.types.ts'
 
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   [Role.SUPER_ADMIN]: [
@@ -23,6 +23,9 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.CATEGORY_READ,
     Permission.CATEGORY_UPDATE,
     Permission.CATEGORY_DELETE,
+    // All order permissions
+    Permission.ORDER_READ,
+    Permission.ORDER_UPDATE,
     // Other
     Permission.PROFILE_READ,
     Permission.REPORT_VIEW,
@@ -48,6 +51,9 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     Permission.CATEGORY_READ,
     Permission.CATEGORY_UPDATE,
     Permission.CATEGORY_DELETE,
+    // All order permissions
+    Permission.ORDER_READ,
+    Permission.ORDER_UPDATE,
     // Other
     Permission.PROFILE_READ,
     Permission.REPORT_VIEW,
@@ -62,5 +68,4 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     // Users can view categories
     Permission.CATEGORY_READ,
   ],
-};
-
+}

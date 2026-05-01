@@ -20,4 +20,7 @@ export enum Permission {
   CATEGORY_READ = 'category:read',
   CATEGORY_UPDATE = 'category:update',
   CATEGORY_DELETE = 'category:delete',
+
+  ORDER_READ = 'order:read',
+  ORDER_UPDATE = 'order:update',
 }

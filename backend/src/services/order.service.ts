@@ -1,12 +1,12 @@
 import { db } from '@/db/index.ts'
-import { orders, orderItems, pizzas, toppings } from '@/db/schema.ts'
+import { orders, orderItems, pizzas, toppings, users } from '@/db/schema.ts'
 import {
   CreateOrderRequest,
   RazorpayVerificationRequest,
   GetOrdersResponse,
   GetOrderByIdResponse,
 } from '@/types/order.types.ts'
-import { inArray, eq, and, desc } from 'drizzle-orm'
+import { inArray, eq, and, desc, count, like } from 'drizzle-orm'
 import Razorpay from 'razorpay'
 import crypto from 'crypto'
 import { log } from '@/utils/logger.ts'
@@ -271,6 +271,214 @@ export const getOrdersService = async (
   }
 }
 
+export const getAllOrdersAdminService = async ({
+  page = 1,
+  limit = 10,
+  status,
+  search,
+}: {
+  page?: number
+  limit?: number
+  status?: string
+  search?: string
+}) => {
+  try {
+    const conditions = []
+    if (status) conditions.push(eq(orders.status, status))
+    if (search) conditions.push(like(orders.id, `%${search}%`))
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined
+
+    const [{ total }] = await db
+      .select({ total: count() })
+      .from(orders)
+      .where(whereClause)
+
+    const offset = (page - 1) * limit
+    const allOrders = await db
+      .select()
+      .from(orders)
+      .where(whereClause)
+      .orderBy(desc(orders.createdAt))
+      .limit(limit)
+      .offset(offset)
+
+    if (allOrders.length === 0) {
+      return {
+        success: true,
+        orders: [],
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit) || 1,
+        },
+      }
+    }
+
+    const userIds = [...new Set(allOrders.map((o) => o.userId))]
+    const usersData = await db
+      .select({ id: users.id, name: users.name, email: users.email })
+      .from(users)
+      .where(inArray(users.id, userIds))
+    const userMap = new Map(usersData.map((u) => [u.id, u]))
+
+    const orderIds = allOrders.map((o) => o.id)
+    const items = await db
+      .select()
+      .from(orderItems)
+      .where(inArray(orderItems.orderId, orderIds))
+
+    const formattedOrders = allOrders.map((order) => {
+      const user = userMap.get(order.userId)
+      const orderItemsList = items.filter((i) => i.orderId === order.id)
+      return {
+        _id: order.id,
+        createdAt: order.createdAt,
+        status: order.status,
+        total: Number(order.totalAmount),
+        customer: user ? { name: user.name, email: user.email } : null,
+        items: orderItemsList,
+      }
+    })
+
+    return {
+      success: true,
+      orders: formattedOrders,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
+    }
+  } catch (error) {
+    log.error('Error fetching all orders (admin)', { error })
+    return { success: false, error: 'Failed to fetch orders' }
+  }
+}
+
+export const getOrderByIdAdminService = async (orderId: string) => {
+  try {
+    const [order] = await db.select().from(orders).where(eq(orders.id, orderId))
+
+    if (!order) {
+      return { success: false, error: 'Order not found' }
+    }
+
+    const [userInfo] = await db
+      .select({ id: users.id, name: users.name, email: users.email })
+      .from(users)
+      .where(eq(users.id, order.userId))
+
+    const items = await db
+      .select()
+      .from(orderItems)
+      .where(eq(orderItems.orderId, orderId))
+
+    const pizzaIds = [...new Set(items.map((i) => i.pizzaId))]
+    let pizzasData: any[] = []
+    if (pizzaIds.length > 0) {
+      pizzasData = await db
+        .select()
+        .from(pizzas)
+        .where(inArray(pizzas.id, pizzaIds))
+    }
+    const pizzaMap = new Map(pizzasData.map((p) => [p.id, p]))
+
+    let allToppingIds: string[] = []
+    items.forEach((i) => {
+      if (i.toppings) {
+        try {
+          allToppingIds = [...allToppingIds, ...JSON.parse(i.toppings)]
+        } catch (e) {}
+      }
+    })
+    const uniqueToppingIds = [...new Set(allToppingIds)]
+    let toppingsData: any[] = []
+    if (uniqueToppingIds.length > 0) {
+      toppingsData = await db
+        .select()
+        .from(toppings)
+        .where(inArray(toppings.id, uniqueToppingIds))
+    }
+    const toppingMap = new Map(toppingsData.map((t) => [t.id, t.name]))
+
+    const formattedItems = items.map((item) => {
+      let itemToppings: string[] = []
+      if (item.toppings) {
+        try {
+          itemToppings = JSON.parse(item.toppings).map(
+            (tId: string) => toppingMap.get(tId) || 'Unknown'
+          )
+        } catch (e) {}
+      }
+      return {
+        id: item.id,
+        name: pizzaMap.get(item.pizzaId)?.name || 'Unknown Pizza',
+        size: item.size,
+        crust: item.crust,
+        toppings: itemToppings,
+        quantity: Number(item.quantity),
+        unitPrice: Number(item.unitPrice),
+        price: Number(item.unitPrice),
+      }
+    })
+
+    const formattedOrder = {
+      _id: order.id,
+      createdAt: order.createdAt,
+      status: order.status,
+      paymentMethod:
+        order.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment',
+      deliveryAddress:
+        typeof order.deliveryAddress === 'string'
+          ? JSON.parse(order.deliveryAddress)
+          : order.deliveryAddress,
+      customer: userInfo
+        ? { name: userInfo.name, email: userInfo.email }
+        : null,
+      items: formattedItems,
+      subtotal: Number(order.subtotal),
+      deliveryFee: Number(order.deliveryFee),
+      total: Number(order.totalAmount),
+    }
+
+    return { success: true, data: formattedOrder }
+  } catch (error) {
+    log.error('Error fetching order by id (admin)', { error })
+    return { success: false, error: 'Failed to fetch order' }
+  }
+}
+
+export const updateOrderStatusAdminService = async (
+  orderId: string,
+  status: string
+) => {
+  try {
+    const validStatuses = [
+      'placed',
+      'preparing',
+      'out-for-delivery',
+      'delivered',
+      'cancelled',
+    ]
+    if (!validStatuses.includes(status)) {
+      return { success: false, error: 'Invalid status' }
+    }
+
+    await db
+      .update(orders)
+      .set({ status, updatedAt: new Date().toISOString() })
+      .where(eq(orders.id, orderId))
+
+    return { success: true }
+  } catch (error) {
+    log.error('Error updating order status (admin)', { error })
+    return { success: false, error: 'Failed to update order status' }
+  }
+}
+
 export const getOrderByIdService = async (
   orderId: string,
   userId: string
@@ -324,7 +532,9 @@ export const getOrderByIdService = async (
       if (item.toppings) {
         try {
           const tIds = JSON.parse(item.toppings)
-          itemToppings = tIds.map((tId: string) => toppingMap.get(tId) || 'Unknown')
+          itemToppings = tIds.map(
+            (tId: string) => toppingMap.get(tId) || 'Unknown'
+          )
         } catch (e) {}
       }
 
@@ -343,8 +553,12 @@ export const getOrderByIdService = async (
       _id: order.id,
       createdAt: order.createdAt,
       status: order.status,
-      paymentMethod: order.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment',
-      deliveryAddress: typeof order.deliveryAddress === 'string' ? JSON.parse(order.deliveryAddress) : order.deliveryAddress,
+      paymentMethod:
+        order.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Online Payment',
+      deliveryAddress:
+        typeof order.deliveryAddress === 'string'
+          ? JSON.parse(order.deliveryAddress)
+          : order.deliveryAddress,
       items: formattedItems,
       subtotal: Number(order.subtotal),
       deliveryFee: Number(order.deliveryFee),
@@ -357,4 +571,3 @@ export const getOrderByIdService = async (
     return { success: false, error: 'Failed to fetch order' }
   }
 }
-
