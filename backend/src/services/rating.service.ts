@@ -29,7 +29,7 @@ export const ratePizza = async (ratingData: AddRatingRequest): Promise<RatePizza
     let avg = Number(pizza.avgRating || 0)
     let count = Number(pizza.ratingCount || 0)
     if (!existing) {
-      const newAvg = (avg * count + newRating) / count + 1
+      const newAvg = (avg * count + newRating) / (count + 1)
       await tx.insert(ratings).values({
         userId,
         pizzaId,

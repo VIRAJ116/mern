@@ -3,6 +3,7 @@ import {
   deletePizza,
   editPizza,
   getAllPizzas,
+  getFanFavourites,
   getPizzaById,
 } from '@/services/pizza.service.ts'
 import {
@@ -144,3 +145,19 @@ export const getPizzas = async (
   }
 }
 
+/**
+ * GET /pizzas/fan-favourites — top-rated pizzas by Bayesian score
+ */
+export const getFanFavouritesController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 6, 12)
+    const data = await getFanFavourites(limit)
+    res.status(200).json({ success: true, data })
+  } catch (error) {
+    next(error)
+  }
+}

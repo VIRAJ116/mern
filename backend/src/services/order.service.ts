@@ -540,6 +540,7 @@ export const getOrderByIdService = async (
 
       return {
         id: item.id,
+        pizzaId: item.pizzaId,
         name: pizzaMap.get(item.pizzaId)?.name || 'Unknown Pizza',
         size: item.size,
         crust: item.crust,

@@ -7,7 +7,7 @@ import {
   PizzaListResult,
   PizzaResponse,
 } from '@/types/pizz.types.ts'
-import { and, count, eq, isNull } from 'drizzle-orm'
+import { and, count, eq, gte, isNull } from 'drizzle-orm'
 import { nowMysql } from '@/utils/date.ts'
 
 export const createPizza = async (
@@ -191,4 +191,58 @@ export const getDistinctCategories = async (): Promise<
     _id: row.category,
     name: row.category.charAt(0).toUpperCase() + row.category.slice(1),
   }))
+}
+
+// ── Fan Favourites ────────────────────────────────────────────────
+// Uses Bayesian average to rank pizzas fairly:
+//   score = (count / (count + C)) * avg + (C / (count + C)) * globalMean
+// Prevents a pizza with 1 rating of 5★ from outranking one with
+// 50 ratings averaging 4.8★ — same method used by IMDb, Zomato, etc.
+const BAYESIAN_CONFIDENCE = 3
+
+export const getFanFavourites = async (limit = 6) => {
+  try {
+    const rows = await db
+      .select()
+      .from(pizzas)
+      .where(
+        and(
+          isNull(pizzas.deletedAt),
+          gte(pizzas.avgRating, '4.0'),
+          gte(pizzas.ratingCount, '1')
+        )
+      )
+
+    if (rows.length === 0) return []
+
+    // Global mean across qualifying pizzas
+    const globalMean =
+      rows.reduce((sum, p) => sum + Number(p.avgRating || 0), 0) / rows.length
+
+    return rows
+      .map((p) => {
+        const avg = Number(p.avgRating || 0)
+        const cnt = Number(p.ratingCount || 0)
+        const score =
+          (cnt / (cnt + BAYESIAN_CONFIDENCE)) * avg +
+          (BAYESIAN_CONFIDENCE / (cnt + BAYESIAN_CONFIDENCE)) * globalMean
+        return {
+          id: p.id,
+          name: p.name,
+          description: p.description ?? undefined,
+          price: Number(p.price),
+          category: p.category,
+          tags: JSON.parse(p.tags || '[]'),
+          imageUrl: p.imageUrl,
+          avgRating: avg,
+          ratingCount: cnt,
+          _score: score,
+        }
+      })
+      .sort((a, b) => b._score - a._score)
+      .slice(0, limit)
+      .map(({ _score, ...rest }) => rest)
+  } catch (error: any) {
+    throw new Error(error.message || 'Failed to fetch fan favourites')
+  }
 }

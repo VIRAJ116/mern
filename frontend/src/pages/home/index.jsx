@@ -1,9 +1,8 @@
 import { Link } from 'react-router'
 import { ArrowRight, Flame, Star, Clock, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { MOCK_PIZZAS } from '@/const/mock-data'
-
-const FEATURED = MOCK_PIZZAS.filter((p) => p.tags.includes('bestseller') || p.tags.includes('chef-special') || p.tags.includes('popular')).slice(0, 4)
+import { useQuery } from '@tanstack/react-query'
+import { getFanFavourites } from '@/services/pizza'
 
 const PIZZA_EMOJI_MAP = {
   '1': '🍅',
@@ -31,6 +30,14 @@ const STATS = [
 const PIZZA_VISUALS = ['1', '6', '3', '5'] // IDs for featured display
 
 export default function HomePage() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['fan-favourites'],
+    queryFn: getFanFavourites,
+    staleTime: 5 * 60 * 1000, // 5 min cache
+  })
+
+  const fanFavourites = data?.data?.data || []
+
   return (
     <div className="overflow-x-hidden">
       {/* Hero */}
@@ -138,12 +145,14 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Featured Pizzas */}
+      {/* Fan Favourites — real data, Bayesian ranked */}
       <section className="py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-10 flex items-end justify-between">
             <div>
-              <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-primary">Our Specialties</p>
+              <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-primary">
+                Rated by Our Customers
+              </p>
               <h2 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
                 Fan Favourites 🔥
               </h2>
@@ -153,36 +162,94 @@ export default function HomePage() {
             </Button>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {FEATURED.map((pizza, idx) => (
-              <Link
-                key={pizza._id}
-                to={`/menu/${pizza._id}`}
-                className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10"
-              >
-                {/* Image placeholder */}
-                <div className="relative flex h-44 items-center justify-center bg-gradient-to-br from-primary/10 via-amber-500/5 to-background">
-                  <span className="text-7xl transition-transform duration-300 group-hover:scale-110">🍕</span>
-                  {pizza.tags[0] && (
-                    <span className="absolute top-3 left-3 rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-bold text-white uppercase tracking-wide">
-                      {pizza.tags[0]}
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-1 flex-col p-4">
-                  <h3 className="mb-1 font-bold">{pizza.name}</h3>
-                  <p className="flex-1 text-xs text-muted-foreground line-clamp-2">{pizza.description}</p>
-                  <div className="mt-3 flex items-center justify-between">
-                    <span className="text-lg font-extrabold text-primary">₹{pizza.basePrice}</span>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Star className="size-3 fill-amber-400 text-amber-400" />
-                      {pizza.rating}
+          {/* Loading skeletons */}
+          {isLoading && (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="rounded-2xl border border-border bg-card overflow-hidden animate-pulse"
+                >
+                  <div className="h-44 bg-muted" />
+                  <div className="p-4 space-y-3">
+                    <div className="h-4 w-2/3 rounded bg-muted" />
+                    <div className="h-3 w-full rounded bg-muted" />
+                    <div className="h-3 w-4/5 rounded bg-muted" />
+                    <div className="flex justify-between pt-1">
+                      <div className="h-5 w-16 rounded bg-muted" />
+                      <div className="h-5 w-12 rounded bg-muted" />
                     </div>
                   </div>
                 </div>
-              </Link>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
+
+          {/* Empty state — no qualifying pizzas yet */}
+          {!isLoading && fanFavourites.length === 0 && (
+            <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border bg-card/50 py-16 text-center">
+              <span className="text-5xl">⭐</span>
+              <p className="text-lg font-bold">No Fan Favourites yet</p>
+              <p className="max-w-xs text-sm text-muted-foreground">
+                Order your first pizza and rate it! Pizzas with 4★ or higher will appear here, ranked by customer love.
+              </p>
+              <Button asChild>
+                <Link to="/menu">Browse Menu</Link>
+              </Button>
+            </div>
+          )}
+
+          {/* Pizza cards */}
+          {!isLoading && fanFavourites.length > 0 && (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {fanFavourites.map((pizza) => (
+                <Link
+                  key={pizza.id}
+                  to={`/menu/${pizza.id}`}
+                  className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10"
+                >
+                  {/* Image area */}
+                  <div className="relative flex h-44 items-center justify-center bg-gradient-to-br from-primary/10 via-amber-500/5 to-background">
+                    {pizza.imageUrl ? (
+                      <img
+                        src={pizza.imageUrl}
+                        alt={pizza.name}
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    ) : (
+                      <span className="text-7xl transition-transform duration-300 group-hover:scale-110">🍕</span>
+                    )}
+                    {/* Top tag */}
+                    {pizza.tags[0] && (
+                      <span className="absolute top-3 left-3 rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-bold text-white uppercase tracking-wide">
+                        {pizza.tags[0]}
+                      </span>
+                    )}
+                    {/* Rating badge */}
+                    <span className="absolute top-3 right-3 flex items-center gap-1 rounded-full bg-amber-400 px-2.5 py-0.5 text-xs font-bold text-white shadow">
+                      <Star className="size-3 fill-white" />
+                      {pizza.avgRating.toFixed(1)}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-1 flex-col p-4">
+                    <h3 className="mb-1 font-bold">{pizza.name}</h3>
+                    <p className="flex-1 text-xs text-muted-foreground line-clamp-2">
+                      {pizza.description}
+                    </p>
+                    <div className="mt-3 flex items-center justify-between">
+                      <span className="text-lg font-extrabold text-primary">₹{pizza.price}</span>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Star className="size-3 fill-amber-400 text-amber-400" />
+                        <span className="font-semibold text-foreground">{pizza.avgRating.toFixed(1)}</span>
+                        <span>({pizza.ratingCount})</span>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
 
           <div className="mt-8 flex justify-center sm:hidden">
             <Button asChild>
