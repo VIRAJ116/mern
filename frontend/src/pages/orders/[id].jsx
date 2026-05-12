@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router'
 import {
   ArrowLeft,
@@ -12,45 +13,56 @@ import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { useQuery } from '@tanstack/react-query'
 import { getOrderById } from '@/services/order'
+import LiveTrackingMap from '@/components/LiveTrackingMap'
+import RateOrderSection from '@/components/RateOrderSection'
 
-const MOCK_ORDER = {
-  _id: 'ORD001',
-  createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-  status: 'out-for-delivery',
-  paymentMethod: 'Cash on Delivery',
-  deliveryAddress: {
-    name: 'Viraj Raiyani',
-    phone: '9876543210',
-    street: '42, Tech Park Road, B-Wing 304',
-    city: 'Surat',
-    pincode: '395004',
-    landmark: 'Near City Mall',
-  },
-  items: [
-    {
-      id: '1',
-      name: 'Margherita Classic',
-      size: 'large',
-      crust: 'classic',
-      toppings: ['Extra Cheese'],
-      quantity: 2,
-      unitPrice: 404,
-    },
-    {
-      id: '2',
-      name: 'BBQ Chicken Fiesta',
-      size: 'medium',
-      crust: 'thin',
-      toppings: [],
-      quantity: 1,
-      unitPrice: 449,
-    },
-  ],
-  subtotal: 1257,
-  deliveryFee: 49,
-  total: 1306,
+// ── Simulated status progression ──────────────────────────────────
+// Real DB status flows: pending → (admin changes) → placed/preparing/etc.
+// Since we have no real riders, we auto-advance client-side for demo.
+
+const SIM_SEQUENCE = ['placed', 'preparing', 'out-for-delivery', 'delivered']
+// Time (ms) to spend IN each step before advancing to the next
+const SIM_DURATIONS = {
+  placed: 8_000, // 8 s
+  preparing: 12_000, // 12 s
+  'out-for-delivery': 2_000, // 45 s  ← matches LiveTrackingMap ANIMATION_MS
 }
 
+function useSimulatedStatus(realStatus) {
+  // Normalize DB 'pending' → 'placed' for display purposes
+  const normalized =
+    realStatus === 'pending' || realStatus === 'placed' ? 'placed' : realStatus
+
+  const [simStatus, setSimStatus] = useState(normalized)
+
+  useEffect(() => {
+    // Don't auto-advance terminal states
+    if (normalized === 'cancelled' || normalized === 'delivered') {
+      setSimStatus(normalized)
+      return
+    }
+
+    setSimStatus(normalized)
+
+    const startIdx = SIM_SEQUENCE.indexOf(normalized)
+    if (startIdx === -1 || startIdx === SIM_SEQUENCE.length - 1) return
+
+    const timers = []
+    let accumulated = 0
+
+    for (let i = startIdx; i < SIM_SEQUENCE.length - 1; i++) {
+      accumulated += SIM_DURATIONS[SIM_SEQUENCE[i]]
+      const next = SIM_SEQUENCE[i + 1]
+      timers.push(setTimeout(() => setSimStatus(next), accumulated))
+    }
+
+    return () => timers.forEach(clearTimeout)
+  }, [normalized])
+
+  return simStatus
+}
+
+// ── Status UI helpers ─────────────────────────────────────────────
 const STATUS_STEPS = [
   {
     key: 'placed',
@@ -73,17 +85,43 @@ const STATUS_STEPS = [
   {
     key: 'delivered',
     label: 'Delivered',
-    desc: 'Enjoy your meal!',
+    desc: 'Enjoy your meal! 🍕',
     icon: CheckCircle2,
   },
 ]
 
-const STATUS_ORDER = ['placed', 'preparing', 'out-for-delivery', 'delivered']
+const STATUS_BADGE = {
+  placed: { label: 'Order Placed', bg: '#ede9fe', color: '#7c3aed' },
+  preparing: { label: 'Preparing', bg: '#fef3c7', color: '#d97706' },
+  'out-for-delivery': {
+    label: 'Out for Delivery',
+    bg: '#fff7ed',
+    color: '#ea580c',
+  },
+  delivered: { label: 'Delivered', bg: '#dcfce7', color: '#16a34a' },
+  cancelled: { label: 'Cancelled', bg: '#fee2e2', color: '#dc2626' },
+}
+
+const BADGE_ICONS = {
+  placed: Package,
+  preparing: Clock,
+  'out-for-delivery': Truck,
+  delivered: CheckCircle2,
+  cancelled: XCircle,
+}
 
 export default function OrderDetailPage() {
   const { id } = useParams()
-  const { data, isLoading } = useQuery({ queryKey: ['order', id], queryFn: () => getOrderById(id) })
-  
+  const { data, isLoading } = useQuery({
+    queryKey: ['order', id],
+    queryFn: () => getOrderById(id),
+  })
+
+  const order = data?.data?.data || null
+
+  // Simulated status — auto-advances even if DB has 'pending'
+  const simStatus = useSimulatedStatus(order?.status ?? 'placed')
+
   if (isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -92,7 +130,6 @@ export default function OrderDetailPage() {
     )
   }
 
-  const order = data?.data?.data || null
   if (!order) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center flex-col gap-4 text-center px-4">
@@ -105,7 +142,9 @@ export default function OrderDetailPage() {
     )
   }
 
-  const currentStepIdx = STATUS_ORDER.indexOf(order.status)
+  const currentStepIdx = STATUS_STEPS.findIndex((s) => s.key === simStatus)
+  const badge = STATUS_BADGE[simStatus] || STATUS_BADGE['placed']
+  const BadgeIcon = BADGE_ICONS[simStatus] || Package
 
   return (
     <div className="min-h-screen py-10">
@@ -117,6 +156,7 @@ export default function OrderDetailPage() {
           <ArrowLeft className="size-4" /> Back to Orders
         </Link>
 
+        {/* Header */}
         <div className="mb-8 flex items-start justify-between flex-wrap gap-4">
           <div>
             <p className="text-xs uppercase tracking-widest text-muted-foreground">
@@ -132,13 +172,18 @@ export default function OrderDetailPage() {
               })}
             </p>
           </div>
-          <span className="rounded-full bg-indigo-50 dark:bg-indigo-950/30 px-4 py-1.5 text-sm font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
-            <Truck className="size-4" /> Out for Delivery
+          {/* Dynamic status badge */}
+          <span
+            className="rounded-full px-4 py-1.5 text-sm font-semibold flex items-center gap-1.5 transition-all duration-500"
+            style={{ background: badge.bg, color: badge.color }}
+          >
+            <BadgeIcon className="size-4" />
+            {badge.label}
           </span>
         </div>
 
         {/* Status Tracker */}
-        {order.status !== 'cancelled' && (
+        {simStatus !== 'cancelled' && (
           <div className="mb-8 rounded-2xl border border-border bg-card p-6 shadow-sm">
             <h2 className="mb-6 font-bold">Order Status</h2>
             <div className="relative">
@@ -151,15 +196,15 @@ export default function OrderDetailPage() {
                     key={step.key}
                     className="relative flex gap-4 pb-8 last:pb-0"
                   >
-                    {/* Connector line */}
                     {idx < STATUS_STEPS.length - 1 && (
                       <div
-                        className={`absolute left-5 top-10 w-0.5 h-full -translate-x-1/2 ${idx < currentStepIdx ? 'bg-primary' : 'bg-border'}`}
+                        className={`absolute left-5 top-10 w-0.5 h-full -translate-x-1/2 transition-colors duration-700 ${
+                          idx < currentStepIdx ? 'bg-primary' : 'bg-border'
+                        }`}
                       />
                     )}
-                    {/* Icon */}
                     <div
-                      className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
+                      className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-500 ${
                         isDone
                           ? 'border-primary bg-primary text-white'
                           : 'border-border bg-card text-muted-foreground'
@@ -169,7 +214,9 @@ export default function OrderDetailPage() {
                     </div>
                     <div className="pt-1.5">
                       <p
-                        className={`font-semibold ${isDone ? 'text-foreground' : 'text-muted-foreground'}`}
+                        className={`font-semibold transition-colors duration-500 ${
+                          isDone ? 'text-foreground' : 'text-muted-foreground'
+                        }`}
                       >
                         {step.label}
                       </p>
@@ -185,7 +232,7 @@ export default function OrderDetailPage() {
         )}
 
         {/* Cancelled state */}
-        {order.status === 'cancelled' && (
+        {simStatus === 'cancelled' && (
           <div className="mb-8 flex items-center gap-3 rounded-2xl border border-destructive/20 bg-destructive/10 p-4">
             <XCircle className="size-6 text-destructive shrink-0" />
             <div>
@@ -196,6 +243,14 @@ export default function OrderDetailPage() {
             </div>
           </div>
         )}
+
+        {/* Live Tracking Map — shown for all active (non-cancelled) orders */}
+        {simStatus !== 'cancelled' && (
+          <LiveTrackingMap order={{ ...order, status: simStatus }} />
+        )}
+
+        {/* Rate Your Order — only shown once delivered */}
+        {simStatus === 'delivered' && <RateOrderSection order={order} />}
 
         {/* Items */}
         <div className="mb-6 rounded-2xl border border-border bg-card p-6 shadow-sm">
