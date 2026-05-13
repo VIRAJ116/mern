@@ -13,21 +13,30 @@ export function AuthProvider({ children }) {
 
   const { data: user, isLoading } = useQuery({
     queryKey: ['auth', 'me'],
-    queryFn: authService.validateMe,
+    queryFn: authService.refresh,
     retry: false,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 10,
+    refetchOnWindowFocus: false,
   });
 
   const isAuthenticated = !!user;
-  const isAdmin = isAuthenticated && ADMIN_ROLES.includes(user.role);
+  const checkIsAdmin = (role) => {
+    if (!role) return false;
+    if (Array.isArray(role)) {
+      return role.some(r => ADMIN_ROLES.includes(r));
+    }
+    return ADMIN_ROLES.includes(role);
+  };
+
+  const isAdmin = isAuthenticated && checkIsAdmin(user.role);
 
   const login = async (credentials) => {
     const userData = await authService.login(credentials);
-    if (!ADMIN_ROLES.includes(userData.role)) {
+    if (!checkIsAdmin(userData.role)) {
       await authService.logout();
       throw new Error('ACCESS_DENIED');
     }
-    await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+    queryClient.setQueryData(['auth', 'me'], userData);
   };
 
   const logout = async () => {

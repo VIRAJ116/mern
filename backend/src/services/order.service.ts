@@ -467,10 +467,7 @@ export const updateOrderStatusAdminService = async (
       return { success: false, error: 'Invalid status' }
     }
 
-    await db
-      .update(orders)
-      .set({ status, updatedAt: new Date().toISOString() })
-      .where(eq(orders.id, orderId))
+    await db.update(orders).set({ status }).where(eq(orders.id, orderId))
 
     return { success: true }
   } catch (error) {

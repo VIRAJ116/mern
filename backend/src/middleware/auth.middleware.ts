@@ -1,4 +1,4 @@
-import { verifyToken } from "@/utils/jwt.ts";
+import { verifyAccessToken } from "@/utils/jwt.ts";
 import { NextFunction, Request, Response } from "express";
 
 export const authenticate = (
@@ -6,8 +6,10 @@ export const authenticate = (
   res: Response,
   next: NextFunction
 ) => {
-  let token: string | undefined;
-  token = req.cookies?.access_token;
+  const header = req.headers.authorization;
+  const token =
+    header && header.startsWith("Bearer ") ? header.slice(7) : undefined;
+
   if (!token) {
     return res.status(401).json({
       success: false,
@@ -15,7 +17,7 @@ export const authenticate = (
     });
   }
   try {
-    const decoded = verifyToken(token);
+    const decoded = verifyAccessToken(token);
     req.user = decoded;
     next();
   } catch {

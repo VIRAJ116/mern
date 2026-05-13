@@ -1,19 +1,16 @@
 import bcrypt from "bcryptjs";
-import { ROLE_PERMISSIONS } from "@/config/role-permissions.ts";
-import { Role } from "@/types/auth.types.ts";
-import { generateToken } from "@/utils/jwt.ts";
+import { db } from "@/db/index.ts";
+import { roles, rolePermissions, userRoles } from "@/db/schema.ts";
+import { eq, inArray } from "drizzle-orm";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+} from "@/utils/jwt.ts";
 
-/**
- * Hash password using SHA-256
- * TODO: Replace with bcrypt or argon2 in production
- */
 export const hashPassword = async (password: string): Promise<string> => {
   return bcrypt.hash(password, 12);
 };
 
-/**
- * Verify password against hash
- */
 export const verifyPassword = async (
   password: string,
   hashedPassword: string
@@ -21,12 +18,41 @@ export const verifyPassword = async (
   return bcrypt.compare(password, hashedPassword);
 };
 
-export const loginUser = async (user: { id: string; role: Role }) => {
-  const permissions = ROLE_PERMISSIONS[user.role];
-  const accessToken = generateToken({
-    userId: user.id,
-    role: user.role,
-    permissions,
+export const issueAuthTokens = async (userId: string) => {
+  const uRoles = await db
+    .select({ roleId: userRoles.roleId, roleName: roles.name })
+    .from(userRoles)
+    .innerJoin(roles, eq(userRoles.roleId, roles.id))
+    .where(eq(userRoles.userId, userId));
+
+  const roleIds = uRoles.map(ur => ur.roleId);
+  const roleNames = uRoles.map(ur => ur.roleName);
+
+  let permissionsList: string[] = [];
+  
+  if (roleIds.length > 0) {
+    const rPerms = await db
+      .select({ permission: rolePermissions.permission })
+      .from(rolePermissions)
+      .where(inArray(rolePermissions.roleId, roleIds));
+    
+    permissionsList = [...new Set(rPerms.map(rp => rp.permission))];
+  }
+
+  // Fallback to 'user' string if no role assigned
+  const rolesToAssign = roleNames.length > 0 ? roleNames : ['user'];
+
+  const accessToken = generateAccessToken({
+    userId,
+    role: rolesToAssign,
+    permissions: permissionsList,
   });
-  return { accessToken };
+  const refreshToken = generateRefreshToken({
+    userId,
+    role: rolesToAssign,
+  });
+  return { accessToken, refreshToken, roles: rolesToAssign };
 };
+
+// Backwards-compatible alias
+export const loginUser = issueAuthTokens;

@@ -40,7 +40,7 @@ import {
 import api from '@/services/axios';
 
 const fetchDashboard = async () => {
-  const response = await api.get('/api/admin/dashboard');
+  const response = await api.get('/admin/dashboard');
   return response.data;
 };
 

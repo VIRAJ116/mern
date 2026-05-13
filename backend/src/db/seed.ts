@@ -1,9 +1,10 @@
 // src/db/seed.ts
 import "dotenv/config";
 import { db } from "./index.js";
-import { users } from "./schema.js";
+import { users, roles, userRoles } from "./schema.js";
 import { eq } from "drizzle-orm";
 import { hashPassword } from "../services/auth.service.js";
+import crypto from "crypto";
 
 /**
  * Seed the database with a super admin user
@@ -33,12 +34,22 @@ async function seed() {
     // Create super admin user
     const hashedPassword = await hashPassword(superAdminPassword);
 
+    const userId = crypto.randomUUID();
     await db.insert(users).values({
+      id: userId,
       name: superAdminName,
       email: superAdminEmail,
       password: hashedPassword,
-      role: "super_admin",
     });
+
+    // Assign super_admin role
+    const [roleObj] = await db.select().from(roles).where(eq(roles.name, "super_admin"));
+    if (roleObj) {
+      await db.insert(userRoles).values({
+        userId,
+        roleId: roleObj.id,
+      });
+    }
 
     console.log("✅ Super admin created successfully!");
     console.log("📧 Email:", superAdminEmail);

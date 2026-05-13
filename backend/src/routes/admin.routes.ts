@@ -18,13 +18,20 @@ import {
   updateCategoryById,
   removeCategory,
 } from '@/controllers/category.controller.ts'
-import {
-  getAllOrdersAdmin,
-  getOrderByIdAdmin,
-  updateOrderStatusAdmin,
-} from '@/controllers/order.controller.ts'
+import { getAllOrdersAdmin, getOrderByIdAdmin, updateOrderStatusAdmin } from '@/controllers/order.controller.ts'
+import { getDashboardOverview } from '@/controllers/dashboard.controller.ts'
+import { getRoles, createRole, updateRole, deleteRole, getPermissions } from '@/controllers/role.controller.ts'
 
 const router = Router()
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
+router.get(
+  '/dashboard',
+  authenticate,
+  authorizePermission(Permission.REPORT_VIEW),
+  getDashboardOverview
+)
 
 // ─── Pizza admin routes ───────────────────────────────────────────────────────
 
@@ -136,6 +143,43 @@ router.patch(
   authenticate,
   authorizePermission(Permission.ORDER_UPDATE),
   updateOrderStatusAdmin
+)
+
+// ─── Roles & Permissions routes ────────────────────────────────────────────────
+
+router.get(
+  '/roles',
+  authenticate,
+  authorizePermission(Permission.USER_READ), // Requires user read to see roles
+  getRoles
+)
+
+router.post(
+  '/roles',
+  authenticate,
+  authorizePermission(Permission.USER_CREATE), // Requires user create to create roles
+  createRole
+)
+
+router.put(
+  '/roles/:id',
+  authenticate,
+  authorizePermission(Permission.USER_UPDATE), // Requires user update to update roles
+  updateRole
+)
+
+router.delete(
+  '/roles/:id',
+  authenticate,
+  authorizePermission(Permission.USER_DELETE), // Requires user delete to delete roles
+  deleteRole
+)
+
+router.get(
+  '/permissions',
+  authenticate,
+  authorizePermission(Permission.USER_READ),
+  getPermissions
 )
 
 export default router

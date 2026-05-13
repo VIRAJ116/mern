@@ -50,6 +50,20 @@
       "when": 1776184540510,
       "tag": "0006_certain_roland_deschain",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1778692615115,
+      "tag": "0007_cultured_spencer_smythe",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1778693688035,
+      "tag": "0008_foamy_moondragon",
+      "breakpoints": true
     }
   ]
 }

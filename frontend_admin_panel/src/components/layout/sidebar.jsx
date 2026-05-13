@@ -8,6 +8,7 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
+  Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +27,7 @@ const navItems = [
   { to: '/toppings', label: 'Toppings', icon: Cherry },
   { to: '/orders', label: 'Orders', icon: ShoppingBag },
   { to: '/users', label: 'Users', icon: Users },
+  { to: '/roles', label: 'Roles', icon: Shield },
 ];
 
 export function Sidebar({ collapsed, onToggleCollapse }) {

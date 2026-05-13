@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Users, Eye, Mail, Phone, Calendar, Loader2 } from 'lucide-react';
+import { Search, Users, Eye, Edit2, Mail, Phone, Calendar, Loader2, Plus } from 'lucide-react';
 
-import { cn, formatDate } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 import { getAllUsers } from '@/services/user';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,15 +24,32 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useAuth } from '@/context/auth-provider';
+import { UserForm } from './components/user-form';
 
 export default function UsersPage() {
+  const { user: currentUser } = useAuth();
   const [search, setSearch] = useState('');
   const [viewUser, setViewUser] = useState(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editUser, setEditUser] = useState(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: getAllUsers,
   });
+
+  const isSuperAdmin = currentUser?.role?.includes('super_admin');
+
+  const handleCreateUser = () => {
+    setEditUser(null);
+    setIsFormOpen(true);
+  };
+
+  const handleEditUser = (user) => {
+    setEditUser(user);
+    setIsFormOpen(true);
+  };
 
   const users = data?.data || data || [];
 
@@ -40,9 +57,7 @@ export default function UsersPage() {
     if (!search.trim()) return users;
     const q = search.toLowerCase();
     return users.filter(
-      (u) =>
-        u.name?.toLowerCase().includes(q) ||
-        u.email?.toLowerCase().includes(q)
+      (u) => u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q)
     );
   }, [users, search]);
 
@@ -61,11 +76,19 @@ export default function UsersPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Users</h1>
-        <p className="text-sm text-muted-foreground">
-          Registered customers and their details ({filtered.length})
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Users</h1>
+          <p className="text-sm text-muted-foreground">
+            Registered customers and their details ({filtered.length})
+          </p>
+        </div>
+        {isSuperAdmin && (
+          <Button onClick={handleCreateUser} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add User
+          </Button>
+        )}
       </div>
 
       {/* Search */}
@@ -120,23 +143,20 @@ export default function UsersPage() {
                       <span className="font-medium">{user.name || 'N/A'}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {user.email || 'N/A'}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {user.phone || 'N/A'}
-                  </TableCell>
+                  <TableCell className="text-muted-foreground">{user.email || 'N/A'}</TableCell>
+                  <TableCell className="text-muted-foreground">{user.phone || 'N/A'}</TableCell>
                   <TableCell className="text-muted-foreground">
                     {user.createdAt ? formatDate(user.createdAt) : 'N/A'}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setViewUser(user)}
-                    >
+                    <Button variant="ghost" size="icon" onClick={() => setViewUser(user)}>
                       <Eye className="h-4 w-4" />
                     </Button>
+                    {isSuperAdmin && (
+                      <Button variant="ghost" size="icon" onClick={() => handleEditUser(user)}>
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -155,9 +175,7 @@ export default function UsersPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>User Details</DialogTitle>
-            <DialogDescription>
-              Information about the selected user.
-            </DialogDescription>
+            <DialogDescription>Information about the selected user.</DialogDescription>
           </DialogHeader>
           {viewUser && (
             <div className="space-y-5">
@@ -226,6 +244,8 @@ export default function UsersPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {isFormOpen && <UserForm user={editUser} onClose={() => setIsFormOpen(false)} />}
     </div>
   );
 }

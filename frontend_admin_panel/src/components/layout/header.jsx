@@ -21,6 +21,7 @@ const pageTitles = {
   '/toppings': 'Toppings',
   '/orders': 'Orders',
   '/users': 'Users',
+  '/roles': 'Roles & Permissions',
 };
 
 function getInitials(user) {

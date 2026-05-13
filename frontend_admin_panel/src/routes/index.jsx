@@ -11,6 +11,7 @@ import ToppingsPage from '../pages/toppings';
 import OrdersPage from '../pages/orders';
 import OrderDetailPage from '../pages/orders/order-detail';
 import UsersPage from '../pages/users';
+import RolesPage from '../pages/roles';
 
 export default function AppRoutes() {
   return (
@@ -29,6 +30,7 @@ export default function AppRoutes() {
           <Route path="orders" element={<OrdersPage />} />
           <Route path="orders/:id" element={<OrderDetailPage />} />
           <Route path="users" element={<UsersPage />} />
+          <Route path="roles" element={<RolesPage />} />
         </Route>
       </Route>
     </Routes>

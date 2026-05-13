@@ -7,6 +7,7 @@ import {
   decimal,
   uniqueIndex,
   boolean,
+  primaryKey,
 } from 'drizzle-orm/mysql-core'
 
 // Example: Define a users table
@@ -18,10 +19,40 @@ export const users = mysqlTable('users', {
   name: varchar('name', { length: 256 }).notNull(), // varchar requires a length
   email: varchar('email', { length: 256 }).notNull().unique(),
   password: varchar('password', { length: 256 }).notNull(), // hashed password
-  role: varchar('role', { length: 50 }).notNull().default('user'), // user role: 'user', 'admin', 'super_admin'
   // MySQL has different timestamp/datetime types than Postgres
   createdAt: timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
 })
+
+export const roles = mysqlTable('roles', {
+  id: char('id', { length: 36 })
+    .$defaultFn(() => crypto.randomUUID())
+    .primaryKey(),
+  name: varchar('name', { length: 50 }).notNull().unique(),
+  description: varchar('description', { length: 256 }),
+  isSystem: boolean('is_system').notNull().default(false),
+  createdAt: timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { mode: 'string' }),
+})
+
+export const rolePermissions = mysqlTable('role_permissions', {
+  roleId: char('role_id', { length: 36 })
+    .notNull()
+    .references(() => roles.id, { onDelete: 'cascade' }),
+  permission: varchar('permission', { length: 100 }).notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.roleId, table.permission] }),
+}))
+
+export const userRoles = mysqlTable('user_roles', {
+  userId: char('user_id', { length: 36 })
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  roleId: char('role_id', { length: 36 })
+    .notNull()
+    .references(() => roles.id, { onDelete: 'cascade' }),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.userId, table.roleId] }),
+}))
 
 export const pizzas = mysqlTable('pizzas', {
   id: char('id', { length: 36 })
@@ -103,12 +134,16 @@ export const orders = mysqlTable('orders', {
   deliveryFee: decimal('delivery_fee', { precision: 10, scale: 2 }).notNull(),
   totalAmount: decimal('total_amount', { precision: 10, scale: 2 }).notNull(),
   status: varchar('status', { length: 50 }).notNull().default('pending'), // pending, preparing, out_for_delivery, delivered, cancelled
-  paymentMethod: varchar('payment_method', { length: 50 }).notNull().default('cod'), // cod, online
-  paymentStatus: varchar('payment_status', { length: 50 }).notNull().default('pending'), // pending, completed, failed
+  paymentMethod: varchar('payment_method', { length: 50 })
+    .notNull()
+    .default('cod'), // cod, online
+  paymentStatus: varchar('payment_status', { length: 50 })
+    .notNull()
+    .default('pending'), // pending, completed, failed
   razorpayOrderId: varchar('razorpay_order_id', { length: 100 }), // only for online
   deliveryAddress: varchar('delivery_address', { length: 1500 }).notNull(), // storing stringified json
   createdAt: timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),
-  updatedAt: timestamp('updated_at', { mode: 'string' }),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
 })
 
 export const orderItems = mysqlTable('order_items', {
@@ -123,7 +158,9 @@ export const orderItems = mysqlTable('order_items', {
     .references(() => pizzas.id),
   size: varchar('size', { length: 50 }).notNull(),
   crust: varchar('crust', { length: 50 }).notNull(),
-  quantity: decimal('quantity', { precision: 10, scale: 0 }).notNull().default('1'),
+  quantity: decimal('quantity', { precision: 10, scale: 0 })
+    .notNull()
+    .default('1'),
   unitPrice: decimal('unit_price', { precision: 10, scale: 2 }).notNull(),
   toppings: varchar('toppings', { length: 1000 }), // stringified json array of topping ids
   createdAt: timestamp('created_at', { mode: 'string' }).defaultNow().notNull(),

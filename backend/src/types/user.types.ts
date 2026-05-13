@@ -37,7 +37,17 @@ export interface CreateUserRequest {
   name: string
   email: string
   password: string
-  role?: UserRole
+  roleIds?: string[]
+}
+
+/**
+ * Update user request payload
+ */
+export interface UpdateUserRequest {
+  name?: string
+  email?: string
+  password?: string
+  roleIds?: string[]
 }
 
 /**

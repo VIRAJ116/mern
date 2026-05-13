@@ -1,0 +1,1 @@
+ALTER TABLE `orders` MODIFY COLUMN `updated_at` timestamp DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP;
