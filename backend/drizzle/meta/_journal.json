@@ -64,6 +64,13 @@
       "when": 1778693688035,
       "tag": "0008_foamy_moondragon",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1747604418000,
+      "tag": "0009_drop_users_role_column",
+      "breakpoints": true
     }
   ]
 }
