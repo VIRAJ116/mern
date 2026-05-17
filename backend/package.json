@@ -7,6 +7,7 @@
     "start": "node dist/index.js",
     "build": "tsup src/index.ts --format esm --clean",
     "dev": "tsx watch src/index.ts",
+    "db:seed-roles": "tsx src/db/seed-roles.ts",
     "db:seed": "tsx src/db/seed.ts",
     "db:seed-toppings": "tsx src/db/seed-toppings.ts",
     "db:seed-categories": "tsx src/db/seed-categories.ts",
