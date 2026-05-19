@@ -5,71 +5,8 @@
     {
       "idx": 0,
       "version": "5",
-      "when": 1766092937465,
-      "tag": "0000_high_lady_bullseye",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "5",
-      "when": 1774565804277,
-      "tag": "0001_flaky_anita_blake",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "5",
-      "when": 1774654539953,
-      "tag": "0002_loving_hellion",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "5",
-      "when": 1774657834499,
-      "tag": "0003_add_updated_at_to_pizzas",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "5",
-      "when": 1776026785644,
-      "tag": "0004_new_bastion",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "5",
-      "when": 1776110905107,
-      "tag": "0005_quiet_valeria_richards",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "5",
-      "when": 1776184540510,
-      "tag": "0006_certain_roland_deschain",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "5",
-      "when": 1778692615115,
-      "tag": "0007_cultured_spencer_smythe",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "5",
-      "when": 1778693688035,
-      "tag": "0008_foamy_moondragon",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "5",
-      "when": 1747604418000,
-      "tag": "0009_drop_users_role_column",
+      "when": 1779217956304,
+      "tag": "0000_deep_quicksilver",
       "breakpoints": true
     }
   ]

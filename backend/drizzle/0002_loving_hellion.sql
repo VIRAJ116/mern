@@ -1,1 +1,0 @@
-ALTER TABLE `pizzas` ADD `deleted_at` timestamp;
