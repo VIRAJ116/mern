@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod/v4'
+import { z } from 'zod'
 import { Pizza, Loader2, Eye, EyeOff, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,7 +15,7 @@ import { useState } from 'react'
 const registerSchema = z
   .object({
     name: z.string().min(2, 'Name must be at least 2 characters'),
-    email: z.email('Enter a valid email address'),
+    email: z.string().email('Enter a valid email address'),
     phone: z.string().regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit mobile number'),
     password: z.string().min(6, 'Password must be at least 6 characters'),
     confirmPassword: z.string(),
