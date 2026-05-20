@@ -18,9 +18,20 @@ import {
   updateCategoryById,
   removeCategory,
 } from '@/controllers/category.controller.ts'
-import { getAllOrdersAdmin, getOrderByIdAdmin, updateOrderStatusAdmin } from '@/controllers/order.controller.ts'
+import {
+  getAllOrdersAdmin,
+  getOrderByIdAdmin,
+  updateOrderStatusAdmin,
+} from '@/controllers/order.controller.ts'
 import { getDashboardOverview } from '@/controllers/dashboard.controller.ts'
-import { getRoles, createRole, updateRole, deleteRole, getPermissions } from '@/controllers/role.controller.ts'
+import {
+  getRoles,
+  createRole,
+  updateRole,
+  deleteRole,
+  getPermissions,
+} from '@/controllers/role.controller.ts'
+import { generateDescription } from '@/controllers/ai.controller.ts'
 
 const router = Router()
 
@@ -180,6 +191,14 @@ router.get(
   authenticate,
   authorizePermission(Permission.USER_READ),
   getPermissions
+)
+
+// ─── AI routes ────────────────────────────────────────────────
+router.post(
+  '/ai/pizza-description',
+  authenticate,
+  authorizePermission(Permission.PIZZA_CREATE),
+  generateDescription
 )
 
 export default router

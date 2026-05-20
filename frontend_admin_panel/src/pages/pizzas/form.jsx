@@ -5,23 +5,18 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { ArrowLeft, Loader2, Save } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, Sparkles } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { getPizzaById, createPizza, updatePizza } from '@/services/pizza';
+import { generatePizzaDescription } from '@/services/ai';
 import { getCategories } from '@/services/category';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -74,6 +69,8 @@ export default function PizzaFormPage() {
     handleSubmit,
     control,
     reset,
+    getValues,
+    setValue,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(pizzaSchema),
@@ -123,6 +120,15 @@ export default function PizzaFormPage() {
     onError: (error) => {
       toast.error(error.response?.data?.message || 'Failed to update pizza');
     },
+  });
+
+  const generateMutation = useMutation({
+    mutationFn: generatePizzaDescription,
+    onSuccess: (data) => {
+      setValue('description', data.data.description ?? '');
+      toast.success('Description generated!');
+    },
+    onError: () => toast.error('Failed to generate description'),
   });
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
@@ -190,21 +196,49 @@ export default function PizzaFormPage() {
                 className={cn(errors.name && 'border-destructive focus-visible:ring-destructive')}
                 {...register('name')}
               />
-              {errors.name && (
-                <p className="text-xs text-destructive">{errors.name.message}</p>
-              )}
+              {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
             </div>
 
             {/* Description */}
             <div className="space-y-2">
-              <Label htmlFor="description">
-                Description <span className="text-destructive">*</span>
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="description">
+                  Description <span className="text-destructive">*</span>
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  id="generate-description-btn"
+                  disabled={isSubmitting || generateMutation.isPending}
+                  onClick={() => {
+                    const name = getValues('name');
+                    if (!name) {
+                      toast.error('Enter a pizza name first');
+                      return;
+                    }
+                    generateMutation.mutate({ name });
+                  }}
+                  className="gap-1.5 text-xs"
+                >
+                  {generateMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3.5 w-3.5 text-yellow-500" />
+                      Generate
+                    </>
+                  )}
+                </Button>
+              </div>
               <Textarea
                 id="description"
                 placeholder="Describe the pizza..."
                 rows={3}
-                disabled={isSubmitting}
+                disabled={isSubmitting || generateMutation.isPending}
                 className={cn(
                   errors.description && 'border-destructive focus-visible:ring-destructive'
                 )}
@@ -237,7 +271,9 @@ export default function PizzaFormPage() {
                           errors.category && 'border-destructive focus-visible:ring-destructive'
                         )}
                       >
-                        <SelectValue placeholder={categoriesLoading ? 'Loading...' : 'Select category'} />
+                        <SelectValue
+                          placeholder={categoriesLoading ? 'Loading...' : 'Select category'}
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         {categoriesList.map((cat) => (
