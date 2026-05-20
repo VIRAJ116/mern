@@ -12,3 +12,5 @@ yarn-debug.log*
 pnpm-debug.log*
 .vscode/
 *.log
+.env.save
+deploy.sh
