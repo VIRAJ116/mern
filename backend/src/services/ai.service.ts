@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai'
+import { getAllPizzas } from './pizza.service.ts'
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
 
@@ -23,4 +24,71 @@ export const generatePizzaDescription = async ({
     },
   })
   return response.text
+}
+
+interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export const chatWithAi = async ({ messages }: { messages: ChatMessage[] }) => {
+  const pizzas = await getAllPizzas()
+  const systemInstruction = `You are a helpful assistant for a pizza shop. 
+
+  Here is our current menu (use only this info for menu questions):
+  ${JSON.stringify(pizzas.data, null, 2)}
+
+  Answer customer questions about menu items, prices, and order status. Keep answers short and friendly. If asked for a phone number, provide this one: +1 (555) 123-4567.`
+
+  const contents = messages.slice(-20).map((m) => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }],
+  }))
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: contents,
+    config: {
+      thinkingConfig: { thinkingBudget: 0 },
+      systemInstruction,
+      maxOutputTokens: 300,
+      temperature: 0.7,
+    },
+  })
+  return response.text
+}
+
+export const chatWithAiStream = async function* ({
+  messages,
+}: {
+  messages: ChatMessage[]
+}) {
+  const pizzas = await getAllPizzas()
+  const systemInstruction = `You are a helpful assistant for a pizza shop. 
+
+  Here is our current menu (use only this info for menu questions):
+  ${JSON.stringify(pizzas.data, null, 2)}
+
+  Answer customer questions about menu items, prices, and order status. Keep answers short and friendly. If asked for a phone number, provide this one: +1 (555) 123-4567.`
+
+  const contents = messages.slice(-20).map((m) => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }],
+  }))
+
+  const stream = await ai.models.generateContentStream({
+    model: 'gemini-2.5-flash',
+    contents,
+    config: {
+      thinkingConfig: { thinkingBudget: 0 },
+      systemInstruction,
+      maxOutputTokens: 300,
+      temperature: 0.7,
+    },
+  })
+
+  for await (const chunk of stream) {
+    if (chunk.text) {
+      yield chunk.text
+    }
+  }
 }

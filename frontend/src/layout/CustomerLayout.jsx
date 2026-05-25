@@ -1,6 +1,7 @@
 import Navbar from '@/components/navbar'
 import Footer from '@/components/footer'
 import { Outlet } from 'react-router'
+import ChatWidget from '@/components/chat-widget'
 
 const CustomerLayout = () => {
   return (
@@ -10,6 +11,7 @@ const CustomerLayout = () => {
         <Outlet />
       </main>
       <Footer />
+      <ChatWidget />
     </div>
   )
 }

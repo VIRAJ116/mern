@@ -198,3 +198,37 @@
     letter-spacing: var(--tracking-normal);
   }
 }
+
+/* ── Chat widget markdown ──────────────────────────── */
+.chat-markdown p {
+  margin: 0;
+}
+.chat-markdown p + p {
+  margin-top: 0.4em;
+}
+.chat-markdown strong {
+  font-weight: 600;
+}
+.chat-markdown ul,
+.chat-markdown ol {
+  margin: 0.35em 0;
+  padding-left: 1.25em;
+}
+.chat-markdown ul {
+  list-style: disc;
+}
+.chat-markdown ol {
+  list-style: decimal;
+}
+.chat-markdown li {
+  margin: 0.15em 0;
+}
+.chat-markdown li::marker {
+  color: var(--muted-foreground);
+}
+.chat-markdown code {
+  font-size: 0.85em;
+  padding: 0.15em 0.35em;
+  border-radius: 0.25rem;
+  background: var(--background);
+}
