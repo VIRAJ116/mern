@@ -8,7 +8,7 @@ import { authenticate } from '@/middleware/auth.middleware.ts'
 
 const router = Router()
 
-router.post('/', authenticate, chatController)
-router.post('/stream', authenticate, chatStreamController)
+router.post('/', chatController)
+router.post('/stream', chatStreamController)
 
 export default router
