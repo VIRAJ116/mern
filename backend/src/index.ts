@@ -22,6 +22,14 @@ app.use(cookieParser())
 app.use(express.urlencoded({ extended: true }))
 app.use(requestLogger)
 
+app.get('/health', (_req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor(process.uptime()), // seconds the process has been running
+  })
+})
+
 /**
  * Routes
  */
@@ -39,5 +47,7 @@ app.use(errorHandler)
 app.listen(PORT, () => {
   log.success(`Server is running on port ${PORT}`)
   log.info(`Environment: ${process.env.NODE_ENV || 'development'}`)
-  log.info(`CORS allowed origins: ${process.env.CORS_ORIGIN || 'http://localhost:5173'}`)
+  log.info(
+    `CORS allowed origins: ${process.env.CORS_ORIGIN || 'http://localhost:5173'}`
+  )
 })

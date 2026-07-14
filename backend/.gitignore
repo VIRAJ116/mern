@@ -15,3 +15,6 @@ pnpm-debug.log*
 
 .env.save
 deploy.sh
+
+# Docker environment file — contains production secrets, never commit
+.env.docker

@@ -1,0 +1,124 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# docker-compose.yml — Pierush Backend (Phase 1)
+#
+# WHY THIS FILE EXISTS:
+#   `docker run` commands with all the necessary flags are long and error-prone.
+#   docker-compose.yml defines your container configuration declaratively in
+#   YAML — version-controlled, reproducible, and easy to read.
+#
+#   To start: docker compose up -d
+#   To stop:  docker compose down
+#   To logs:  docker compose logs -f backend
+#
+# PHASE 1 SCOPE:
+#   Only the backend container. MySQL, Nginx, and PM2 remain unchanged on the
+#   EC2 host. Docker and PM2 run simultaneously on different ports during testing.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+services:
+  backend:
+
+    # ── Build Configuration ──────────────────────────────────────────────────
+    # Build the Docker image from the Dockerfile in the current directory.
+    #
+    # context: .    → send the backend/ directory as the Docker build context
+    # dockerfile:   → use Dockerfile in the context directory
+    #
+    # After building, the image is tagged as pierush-backend:latest.
+    # WHY name the image? So you can reference it in `docker images`,
+    # `docker rmi`, and later when pushing to a registry in Phase 2.
+    image: pierush-backend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    # ── Container Name ────────────────────────────────────────────────────────
+    # Give the container a fixed, predictable name.
+    # Without this, Docker generates random names like "musing_archimedes".
+    # A fixed name lets you run `docker logs pierush-backend` or
+    # `docker exec -it pierush-backend sh` reliably.
+    container_name: pierush-backend
+
+    # ── CRITICAL: Network Mode ───────────────────────────────────────────────
+    # network_mode: host
+    #
+    # WHY host networking for Phase 1?
+    #
+    # Your MySQL is bound to 127.0.0.1 only (bind-address = 127.0.0.1 in mysqld.cnf).
+    # This means MySQL only listens on the loopback interface — by design, for security.
+    #
+    # In Docker's default "bridge" network mode:
+    #   - Each container gets its own virtual network namespace
+    #   - 'localhost' inside the container means the CONTAINER itself
+    #   - The container cannot reach the host's 127.0.0.1
+    #   - Result: DATABASE_URL with localhost would fail with "Connection refused"
+    #
+    # There are two ways to solve this without changing MySQL's bind-address:
+    #   Option A: host-gateway extra_hosts (works if MySQL listens on 0.0.0.0)
+    #   Option B: network_mode: host (works even with bind-address = 127.0.0.1)
+    #
+    # We use Option B (host networking):
+    #   - The container shares the EC2 host's network stack directly
+    #   - Inside the container, 'localhost' = the EC2 host's 'localhost'
+    #   - MySQL at 127.0.0.1:3306 is reachable as localhost:3306
+    #   - No changes needed to DATABASE_URL
+    #   - No changes needed to MySQL configuration
+    #   - Nginx on port 80/443 continues working as before
+    #
+    # Trade-offs of host networking:
+    #   + Works perfectly with MySQL bound to 127.0.0.1 (no config change)
+    #   + Simpler — no port mapping syntax needed
+    #   - Only works on Linux (EC2 is Ubuntu Linux ✅, macOS ❌)
+    #   - Container and host share all network ports — no isolation
+    #   - For Phase 2 (multi-service Docker Compose), we'll reconsider this
+    #
+    # IMPORTANT: With host networking, the 'ports:' directive is IGNORED.
+    # The container binds directly to host ports via the PORT env variable.
+    network_mode: host
+
+    # ── Restart Policy ────────────────────────────────────────────────────────
+    # unless-stopped: automatically restart the container if it crashes
+    # or if the EC2 instance reboots, UNLESS you manually stopped it with
+    # `docker compose down` (which sets the intended state to "stopped").
+    #
+    # This replaces PM2's auto-restart behavior.
+    # PM2 options comparison:
+    #   PM2 `--watch`          → no equivalent needed (Docker handles this)
+    #   PM2 `max_restarts`     → Docker has no max limit with unless-stopped
+    #   PM2 ecosystem.config.js → replaced by this docker-compose.yml
+    restart: unless-stopped
+
+    # ── Environment Variables ─────────────────────────────────────────────────
+    # Load environment variables from .env.docker (NOT the same as .env).
+    #
+    # WHY a separate .env.docker file (not the existing .env)?
+    #
+    # During Phase 1, BOTH PM2 and Docker run simultaneously on the same EC2:
+    #   - PM2 reads .env (PORT=5000 → production traffic via Nginx)
+    #   - Docker reads .env.docker (PORT=5001 → for testing only)
+    #
+    # This coexistence lets you verify Docker works before switching over.
+    # When you're ready to cut over, update .env.docker to PORT=5000 and stop PM2.
+    #
+    # .env.docker is listed in .gitignore (never committed — contains secrets).
+    # Use .env.docker.example as the template.
+    env_file:
+      - .env.docker
+
+    # ── Health Check ─────────────────────────────────────────────────────────
+    # Override the Dockerfile HEALTHCHECK with compose-level config.
+    # This checks the /health endpoint we added to src/index.ts.
+    #
+    # test: the command Docker runs inside the container
+    # interval: how often to check
+    # timeout: how long to wait for a response before counting as failure
+    # retries: how many failures before marking UNHEALTHY
+    # start_period: grace period after container starts (Node.js needs time to initialize)
+    #
+    # View status: docker inspect --format='{{.State.Health.Status}}' pierush-backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:$${PORT:-5001}/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s

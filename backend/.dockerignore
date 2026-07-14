@@ -1,0 +1,105 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# .dockerignore — Pierush Backend
+#
+# WHY THIS FILE EXISTS:
+#   When you run `docker build`, Docker packages your entire build directory
+#   into a "build context" and sends it to the Docker daemon before even
+#   reading the Dockerfile. If node_modules/ is included, that's 200MB+ being
+#   transferred unnecessarily before the build even starts.
+#
+#   .dockerignore tells Docker to skip specific files/directories when
+#   assembling the build context — exactly like .gitignore but for Docker.
+#
+# WHAT THIS PROTECTS:
+#   1. Speed   — smaller context = faster builds
+#   2. Security — .env files never enter the Docker daemon or image
+#   3. Correctness — node_modules from your host don't override in-container ones
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+# ── Node Modules ──────────────────────────────────────────────────────────────
+# NEVER include node_modules from the host machine.
+# The Dockerfile runs `npm ci` inside the container to install dependencies
+# fresh for the target OS/architecture (Linux/alpine).
+# Your macOS or Windows node_modules may contain platform-specific binaries
+# that don't run on Linux Alpine. Always let Docker install its own.
+node_modules/
+
+
+# ── Secrets and Environment Files ─────────────────────────────────────────────
+# THE MOST IMPORTANT EXCLUSION.
+# .env files contain secrets: database passwords, JWT secrets, API keys.
+# If these are baked into the Docker image, anyone who pulls the image
+# can extract your secrets with `docker run --entrypoint cat image .env`
+#
+# Secrets are passed at runtime via docker-compose.yml env_file: .env.docker
+# They should NEVER be part of the image itself.
+.env
+.env.*
+.env.docker
+.env.docker.example
+
+
+# ── Build Artifacts ───────────────────────────────────────────────────────────
+# dist/ is the compiled output from `npm run build`.
+# The Dockerfile rebuilds it inside the container using RUN npm run build.
+# The host's dist/ (if it exists) should not be used — it was compiled for
+# the host OS, not for Linux Alpine.
+dist/
+
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+# Winston log files from development. Not needed in the container.
+# In Docker, logs go to stdout/stderr and are captured by `docker logs`.
+logs/
+*.log
+
+
+# ── Git History ───────────────────────────────────────────────────────────────
+# The .git directory is large and completely irrelevant to running the app.
+# Exclude it to keep the build context small.
+.git/
+.gitignore
+
+
+# ── Drizzle Migrations ────────────────────────────────────────────────────────
+# The drizzle/ directory contains SQL migration files.
+# Migrations are run MANUALLY from your local machine or EC2 host using
+# `npm run db:migrate`. They are NOT run from inside the container.
+# drizzle.config.ts is the Drizzle CLI config — also not needed at runtime.
+drizzle/
+drizzle.config.ts
+
+
+# ── Documentation ─────────────────────────────────────────────────────────────
+# Markdown files are for humans, not for running Node.js.
+*.md
+DOCKER_MIGRATION.md
+
+
+# ── Editor and OS Files ───────────────────────────────────────────────────────
+.vscode/
+.idea/
+.DS_Store
+
+
+# ── Utility Scripts ───────────────────────────────────────────────────────────
+# The scripts/ directory contains one-off database migration utilities.
+# These are development/maintenance tools, not runtime code.
+scripts/
+
+
+# ── Prettier Config ───────────────────────────────────────────────────────────
+# Code formatting config is irrelevant at runtime.
+.prettierrc
+
+
+# ── What IS included (implicitly) ─────────────────────────────────────────────
+# Everything NOT listed above enters the build context, including:
+#   package.json       ← needed by both builder and production stages
+#   package-lock.json  ← needed for deterministic npm ci
+#   tsconfig.json      ← needed by tsup for TypeScript + path alias config
+#   src/               ← needed by builder stage for compilation
+#
+# Note: src/ is only USED in the builder stage (RUN npm run build).
+# The production stage ONLY gets dist/ via --from=builder.

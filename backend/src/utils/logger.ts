@@ -36,6 +36,42 @@ const colorizedFormat = winston.format.printf(
   }
 );
 
+// File transports are only active in non-production environments (development/local).
+//
+// WHY this conditional?
+//   In Docker, NODE_ENV=production. The container image does NOT have a logs/
+//   directory — writing to logs/error.log would cause an ENOENT crash on the
+//   first log write. More fundamentally, files written inside a container
+//   vanish when the container is restarted, making file logging useless.
+//
+//   Docker's native logging model: everything your app writes to stdout/stderr
+//   is captured by the Docker daemon and available via `docker logs pierush-backend`.
+//   The Console transport below is all you need in production.
+//
+//   In development (npm run dev), file logging still works as before.
+const fileTransports =
+  process.env.NODE_ENV !== "production"
+    ? [
+        // Write error-level logs to logs/error.log (development only)
+        new winston.transports.File({
+          filename: "logs/error.log",
+          level: "error",
+          format: winston.format.combine(
+            winston.format.timestamp(),
+            winston.format.json()
+          ),
+        }),
+        // Write all log levels to logs/combined.log (development only)
+        new winston.transports.File({
+          filename: "logs/combined.log",
+          format: winston.format.combine(
+            winston.format.timestamp(),
+            winston.format.json()
+          ),
+        }),
+      ]
+    : []; // Empty array in production — stdout only
+
 // Create the logger
 export const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || "info",
@@ -46,30 +82,17 @@ export const logger = winston.createLogger({
     winston.format.json()
   ),
   transports: [
-    // Console transport with colors
+    // Console transport: always active.
+    // In Docker (production): Docker daemon captures this as stdout/stderr.
+    // In development: prints colorized output to your terminal.
     new winston.transports.Console({
       format: winston.format.combine(
         winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
         colorizedFormat
       ),
     }),
-    // File transport for errors
-    new winston.transports.File({
-      filename: "logs/error.log",
-      level: "error",
-      format: winston.format.combine(
-        winston.format.timestamp(),
-        winston.format.json()
-      ),
-    }),
-    // File transport for all logs
-    new winston.transports.File({
-      filename: "logs/combined.log",
-      format: winston.format.combine(
-        winston.format.timestamp(),
-        winston.format.json()
-      ),
-    }),
+    // Spread file transports — populated in development, empty in production
+    ...fileTransports,
   ],
 });
 

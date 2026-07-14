@@ -13,7 +13,14 @@
     "db:seed-categories": "tsx src/db/seed-categories.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "docker:build": "docker build -t pierush-backend:latest .",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f backend",
+    "docker:restart": "docker compose restart backend",
+    "docker:shell": "docker exec -it pierush-backend sh",
+    "docker:ps": "docker compose ps"
   },
   "keywords": [],
   "author": "",
