@@ -190,27 +190,25 @@ jobs:
             echo "🧹 Removing old unused images..."
             sudo docker image prune -f
 
-            echo "✅ Deployment complete!"
+            echo "⏳ Waiting 15s for container to start..."
+            sleep 15
+
+            # Read the PORT from .env.docker to know which port to check
+            # This works even if you later change PORT from 5001 to 5000
+            APP_PORT=$(grep '^PORT=' .env.docker | cut -d'=' -f2)
+            echo "🔍 Checking health on http://localhost:${APP_PORT}/health ..."
+            curl --fail --silent --show-error --max-time 10 http://localhost:${APP_PORT}/health
+
+            echo ""
+            echo "✅ Deployment complete and healthy!"
             sudo docker ps --filter "name=pierush-backend" --format "table {{.Names}}\t{{.Status}}\t{{.Image}}"
 
-      # ── Step 2: Wait for container to start ───────────────────────────────
-      # The container needs a few seconds to start before we hit /health.
-      # The Dockerfile has start_period: 15s in HEALTHCHECK, so we wait 20s.
-      - name: "Wait for container startup"
-        run: sleep 20
-
-      # ── Step 3: Verify the deployment ─────────────────────────────────────
-      # Hit the production /health endpoint to confirm the new container is
-      # alive and serving traffic. If this fails, GitHub Actions marks the
-      # workflow as FAILED (red ✗) so you know immediately.
+      # ── Step 2: Verify via public domain (only after Nginx points to Docker) ──
+      # Uncomment this block AFTER you've switched Nginx to proxy Docker's port
+      # and confirmed PM2 is stopped.
       #
-      # --fail:         exit with non-zero code if server returns 4xx/5xx
-      # --silent:       don't show progress bar
-      # --show-error:   but DO show error message if something goes wrong
-      # --max-time 10:  fail if no response within 10 seconds
-      - name: "Verify deployment via health check"
-        run: |
-          echo "🔍 Checking https://api.pierush.xyz/health ..."
-          curl --fail --silent --show-error --max-time 10 https://api.pierush.xyz/health
-          echo ""
-          echo "✅ Health check passed — deployment successful!"
+      # - name: "Verify via public domain"
+      #   run: |
+      #     echo "🔍 Checking https://api.pierush.xyz/health ..."
+      #     curl --fail --silent --show-error --max-time 10 https://api.pierush.xyz/health
+      #     echo "✅ Health check passed!"
