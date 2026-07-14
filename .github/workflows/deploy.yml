@@ -1,0 +1,216 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# .github/workflows/deploy.yml — Pierush Backend CI/CD Pipeline
+#
+# WHY THIS FILE EXISTS:
+#   This is the GitHub Actions workflow file. GitHub reads this automatically
+#   whenever code is pushed. It defines a pipeline with two jobs:
+#     1. build  — builds the Docker image and pushes it to Docker Hub
+#     2. deploy — SSHs into EC2 and pulls + restarts the container
+#
+# RESULT:
+#   Every `git push origin main` (that touches backend/ files) automatically:
+#     ✅ Builds a fresh Docker image on GitHub's servers (not your EC2)
+#     ✅ Pushes the image to Docker Hub
+#     ✅ SSHs into EC2 and deploys the new image
+#     ✅ Verifies the deployment via the /health endpoint
+#     ✅ No manual steps required
+# ═══════════════════════════════════════════════════════════════════════════════
+
+name: "Deploy Backend"
+
+# ── Trigger ────────────────────────────────────────────────────────────────────
+# When does this workflow run?
+on:
+  push:
+    branches:
+      - main          # Only on pushes to the main branch (not dev, feature branches)
+    paths:
+      - "backend/**"  # ONLY when files inside backend/ change
+                      # WHY? Pushing frontend changes should NOT redeploy the backend.
+                      # This prevents unnecessary deploys and Docker Hub pushes.
+      - ".github/workflows/deploy.yml"  # Also re-run if this workflow itself changes
+
+# ── Concurrency ────────────────────────────────────────────────────────────────
+# If two pushes happen in quick succession, cancel the older run.
+# WHY? You don't want two deploys running simultaneously on the same EC2.
+# The latest push is always the one that should win.
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 1: build
+# Runs on GitHub's servers. Builds the Docker image and pushes to Docker Hub.
+# Your EC2 does ZERO work here — GitHub pays for the compute.
+# ─────────────────────────────────────────────────────────────────────────────
+jobs:
+  build:
+    name: "Build & Push Docker Image"
+    runs-on: ubuntu-latest   # GitHub provides a fresh Ubuntu VM for free
+
+    # Expose the image digest as an output so the deploy job can reference it
+    outputs:
+      image_digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      # ── Step 1: Checkout the code ──────────────────────────────────────────
+      # Downloads your repository code onto the GitHub runner VM.
+      # Without this, none of your files (Dockerfile, src/, etc.) are available.
+      - name: "Checkout repository"
+        uses: actions/checkout@v4
+
+      # ── Step 2: Set up Docker Buildx ──────────────────────────────────────
+      # Buildx is Docker's extended build system. It provides:
+      #   - Better layer caching (we use registry cache below)
+      #   - Multi-platform builds (future: linux/arm64 for Graviton EC2)
+      #   - Faster parallel builds
+      # WHY not just use `docker build`? Buildx gives us the registry cache
+      # feature which dramatically speeds up subsequent builds.
+      - name: "Set up Docker Buildx"
+        uses: docker/setup-buildx-action@v3
+
+      # ── Step 3: Login to Docker Hub ───────────────────────────────────────
+      # Authenticates with Docker Hub using secrets stored in GitHub.
+      # WHY secrets? Never hardcode credentials in workflow files.
+      # The DOCKERHUB_TOKEN is a Docker Hub Access Token (not your password).
+      # Generate it at: hub.docker.com → Account Settings → Security → New Access Token
+      - name: "Login to Docker Hub"
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # ── Step 4: Generate image tags ───────────────────────────────────────
+      # Creates two tags for this build:
+      #   1. virajraiyani116/pierush-backend:latest
+      #      → always points to the newest build (used by EC2 to pull)
+      #   2. virajraiyani116/pierush-backend:sha-abc1234
+      #      → pinned to this specific commit (used for rollback)
+      #
+      # WHY a SHA tag?
+      #   If you deploy and something breaks, you can rollback to any previous
+      #   image by its SHA tag. `latest` always moves forward, SHA tags are
+      #   permanent snapshots.
+      - name: "Generate image tags and labels"
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: virajraiyani116/pierush-backend
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short
+
+      # ── Step 5: Build and push the Docker image ───────────────────────────
+      # This is the main step. It:
+      #   1. Sends backend/ as the build context (Dockerfile is there)
+      #   2. Runs both stages of the multi-stage Dockerfile
+      #   3. Pushes the result to Docker Hub with the tags from Step 4
+      #
+      # CACHE STRATEGY (registry cache):
+      #   cache-from: pulls previously cached layers from Docker Hub
+      #   cache-to:   saves new layers back to Docker Hub after build
+      #
+      #   WHY registry cache?
+      #     On first build: no cache → takes ~3-4 minutes (npm ci, compile)
+      #     On subsequent builds where only src/ changed: cache restores the
+      #     npm ci layer → takes ~1 minute (skips dependency install)
+      #     This is the same layer caching trick in the Dockerfile, but for CI.
+      #
+      # context: ./backend     → the backend/ subdirectory (monorepo setup)
+      # file: ./backend/Dockerfile → explicit path to Dockerfile
+      - name: "Build and push Docker image"
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=virajraiyani116/pierush-backend:buildcache
+          cache-to: type=registry,ref=virajraiyani116/pierush-backend:buildcache,mode=max
+
+      # ── Step 6: Print the image digest ────────────────────────────────────
+      # The digest is a SHA256 hash of the image content.
+      # Even more precise than a tag — useful for audit logs.
+      - name: "Print image digest"
+        run: |
+          echo "Image pushed successfully!"
+          echo "Digest: ${{ steps.build.outputs.digest }}"
+          echo "Tags: ${{ steps.meta.outputs.tags }}"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 2: deploy
+# Runs AFTER the build job succeeds. SSHs into EC2 and swaps the container.
+# ─────────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: "Deploy to EC2"
+    runs-on: ubuntu-latest
+    needs: build      # ← Only starts if the build job succeeds
+                      # If the Docker build fails, this job never runs.
+                      # Your production container is never touched on a broken build.
+
+    steps:
+      # ── Step 1: SSH into EC2 and deploy ───────────────────────────────────
+      # Uses the appleboy/ssh-action — the most popular SSH action on GitHub.
+      # It connects to EC2 and runs the `script` block remotely.
+      #
+      # EC2_HOST:       your EC2 public IP (e.g. 13.234.56.78) or domain
+      # EC2_SSH_KEY:    the full content of your EC2 .pem private key
+      # EC2_DEPLOY_PATH: the absolute path to backend/ on EC2
+      #                  (e.g. /home/ubuntu/mern/backend)
+      #
+      # script explanation:
+      #   set -e               → exit immediately if any command fails
+      #                          (prevents partial deployments)
+      #   docker compose pull  → downloads the new :latest image from Docker Hub
+      #   docker compose up -d --force-recreate
+      #                        → stops old container, starts new one
+      #                          --force-recreate: restart even if config didn't change
+      #                          --no-build: never try to build on EC2 (pull only)
+      #   docker image prune   → removes old/unused image layers to save EC2 disk space
+      - name: "SSH into EC2 and deploy new container"
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+
+            echo "📦 Navigating to deployment directory..."
+            cd ${{ secrets.EC2_DEPLOY_PATH }}
+
+            echo "⬇️  Pulling latest image from Docker Hub..."
+            docker compose pull
+
+            echo "🔄 Restarting container with new image..."
+            docker compose up -d --force-recreate --no-build
+
+            echo "🧹 Removing old unused images..."
+            docker image prune -f
+
+            echo "✅ Deployment complete!"
+            docker ps --filter "name=pierush-backend" --format "table {{.Names}}\t{{.Status}}\t{{.Image}}"
+
+      # ── Step 2: Wait for container to start ───────────────────────────────
+      # The container needs a few seconds to start before we hit /health.
+      # The Dockerfile has start_period: 15s in HEALTHCHECK, so we wait 20s.
+      - name: "Wait for container startup"
+        run: sleep 20
+
+      # ── Step 3: Verify the deployment ─────────────────────────────────────
+      # Hit the production /health endpoint to confirm the new container is
+      # alive and serving traffic. If this fails, GitHub Actions marks the
+      # workflow as FAILED (red ✗) so you know immediately.
+      #
+      # --fail:         exit with non-zero code if server returns 4xx/5xx
+      # --silent:       don't show progress bar
+      # --show-error:   but DO show error message if something goes wrong
+      # --max-time 10:  fail if no response within 10 seconds
+      - name: "Verify deployment via health check"
+        run: |
+          echo "🔍 Checking https://api.pierush.xyz/health ..."
+          curl --fail --silent --show-error --max-time 10 https://api.pierush.xyz/health
+          echo ""
+          echo "✅ Health check passed — deployment successful!"
