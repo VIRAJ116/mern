@@ -182,16 +182,16 @@ jobs:
             cd ${{ secrets.EC2_DEPLOY_PATH }}
 
             echo "⬇️  Pulling latest image from Docker Hub..."
-            docker compose pull
+            sudo docker compose pull
 
             echo "🔄 Restarting container with new image..."
-            docker compose up -d --force-recreate --no-build
+            sudo docker compose up -d --force-recreate --no-build
 
             echo "🧹 Removing old unused images..."
-            docker image prune -f
+            sudo docker image prune -f
 
             echo "✅ Deployment complete!"
-            docker ps --filter "name=pierush-backend" --format "table {{.Names}}\t{{.Status}}\t{{.Image}}"
+            sudo docker ps --filter "name=pierush-backend" --format "table {{.Names}}\t{{.Status}}\t{{.Image}}"
 
       # ── Step 2: Wait for container to start ───────────────────────────────
       # The container needs a few seconds to start before we hit /health.
