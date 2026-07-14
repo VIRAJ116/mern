@@ -18,19 +18,28 @@
 services:
   backend:
 
-    # ── Build Configuration ──────────────────────────────────────────────────
-    # Build the Docker image from the Dockerfile in the current directory.
+    # ── Image ────────────────────────────────────────────────────────────────
+    # Pull the pre-built image from Docker Hub.
+    # WHY pull instead of build?
+    #   Your EC2 micro instance (1 vCPU, 1GB RAM) is too weak to run
+    #   `npm ci` twice + TypeScript compilation in parallel. It will be slow
+    #   and may run out of memory (OOM).
     #
-    # context: .    → send the backend/ directory as the Docker build context
-    # dockerfile:   → use Dockerfile in the context directory
+    # The correct workflow:
+    #   1. Build image on your Mac:  docker build -t virajraiyani116/pierush-backend:latest .
+    #   2. Push to Docker Hub:       docker push virajraiyani116/pierush-backend:latest
+    #   3. On EC2 (this file):       docker compose pull && docker compose up -d
     #
-    # After building, the image is tagged as pierush-backend:latest.
-    # WHY name the image? So you can reference it in `docker images`,
-    # `docker rmi`, and later when pushing to a registry in Phase 2.
-    image: pierush-backend:latest
-    build:
-      context: .
-      dockerfile: Dockerfile
+    # EC2 only downloads a ready-to-run image — no compilation, no npm install.
+    image: virajraiyani116/pierush-backend:latest
+
+    # ── Local Development Build (uncomment when building locally) ─────────────
+    # If you want to test a local build on this machine, uncomment these lines:
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+
+
 
     # ── Container Name ────────────────────────────────────────────────────────
     # Give the container a fixed, predictable name.
