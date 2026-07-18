@@ -17,7 +17,6 @@
 
 services:
   backend:
-
     # ── Image ────────────────────────────────────────────────────────────────
     # Pull the pre-built image from Docker Hub.
     # WHY pull instead of build?
@@ -38,8 +37,6 @@ services:
     # build:
     #   context: .
     #   dockerfile: Dockerfile
-
-
 
     # ── Container Name ────────────────────────────────────────────────────────
     # Give the container a fixed, predictable name.
@@ -126,7 +123,11 @@ services:
     #
     # View status: docker inspect --format='{{.State.Health.Status}}' pierush-backend
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:$${PORT:-5001}/health || exit 1"]
+      test:
+        [
+          'CMD-SHELL',
+          'wget -qO- http://localhost:$${PORT:-5000}/health || exit 1',
+        ]
       interval: 30s
       timeout: 5s
       retries: 3
